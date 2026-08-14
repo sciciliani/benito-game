@@ -1,0 +1,302 @@
+// Default level. Builds on LEVEL_DEMO's straight corridor (see that file for
+// the fully-documented schema) by widening the middle stretch into an open
+// plaza with two side branches — a hidden west room and an east lookout
+// tower reached by climbing — plus a gate before the boss wing that stays
+// shut until the player has collected enough milk/tuna, so at least one
+// branch actually has to be visited instead of walking straight through.
+//
+// Layout along z (the main direction of travel):
+//   -4..6   spawn funnel, corridor width  9 (x: -9..9)
+//    6..17  open plaza,   width 18 (x: -18..18) — west room + east tower
+//   17..38  water crossing, corridor width 9 (unchanged from LEVEL_DEMO)
+//   38..41  gate (blocks path until goal.collectiblesRequired is met)
+//   41..57  climbable wall + stair descent (unchanged from LEVEL_DEMO)
+//   57..98  enemy gauntlet + boss arena (widens back to 18, unchanged shape)
+
+(function () {
+  function hedgeCol(x, z0, z1, segLen) {
+    const segs = [];
+    for (let z = z0; z < z1; z += segLen) {
+      const len = Math.min(segLen, z1 - z);
+      segs.push({ x, y: 1.3, z: z + len / 2, w: 1.8, h: 2.6, d: len + 0.4, hedge: true });
+    }
+    return segs;
+  }
+  function hedgeRow(x0, x1, z, segLen) {
+    const segs = [];
+    for (let x = x0; x < x1; x += segLen) {
+      const len = Math.min(segLen, x1 - x);
+      segs.push({ x: x + len / 2, y: 1.3, z, w: len + 0.4, h: 2.6, d: 1.8, hedge: true });
+    }
+    return segs;
+  }
+
+  const boundaries = [
+    ...hedgeRow(-9, 9, -4, 4.5),        // cap behind spawn
+    ...hedgeCol(-9, -4, 6, 5),          // spawn funnel, west/east
+    ...hedgeCol(9, -4, 6, 5),
+    ...hedgeCol(-18, 6, 17, 5.5),       // plaza outer wall, west/east
+    ...hedgeCol(18, 6, 17, 5.5),
+    ...hedgeRow(-18, -9, 6, 4.5),       // west room north wall
+    ...hedgeRow(-18, -9, 14, 4.5),      // west room south wall (west wall is shared with the plaza outer wall above)
+    ...hedgeCol(-9, 17, 60, 5),         // corridor resumes, west/east
+    ...hedgeCol(9, 17, 60, 5),
+    ...hedgeRow(-18, -9, 60, 4.5),      // arena south wall, west/east flank (leaves -9..9 open as the entrance)
+    ...hedgeRow(9, 18, 60, 4.5),
+    ...hedgeCol(-18, 60, 98, 6),        // arena west/east wall
+    ...hedgeCol(18, 60, 98, 6),
+    ...hedgeRow(-18, 18, 98, 6),        // arena north cap, behind the boss
+  ];
+
+  // Purely decorative — placed just outside the outer hedge walls (|x| > 18)
+  // so they're visible in the distance but never inside reachable space
+  // (matches how platforms/enemies have no collision against them).
+  const houses = [
+    { x: -24, y: 1.4, z: 24, w: 5, h: 2.8, d: 5, house: true },
+    { x: 24, y: 1.4, z: 36, w: 5, h: 2.8, d: 5, house: true },
+    { x: -24, y: 1.4, z: 70, w: 5, h: 2.8, d: 5, house: true },
+    { x: 24, y: 1.4, z: 85, w: 5, h: 2.8, d: 5, house: true },
+  ];
+
+  const LEVEL_GARDEN = {
+    id: 'garden-1',
+    name: 'Jardin de Benito',
+    spawn: { x: 0, y: 1, z: 0 },
+    skyColor: 0x2f7fd6,
+    skyHorizon: 0xbfe9ff,
+    groundColor: 0x5ea63c,
+    groundSize: 260,
+
+    platforms: [
+      // East lookout tower: a climbable wall with a small rooftop on top,
+      // freestanding in the plaza — an optional vertical detour, not a
+      // shortcut past the water crossing.
+      { x: 14, y: 3, z: 10, w: 5, h: 6, d: 1.2, climbable: true },
+      { x: 14, y: 6.2, z: 10, w: 4, h: 0.4, d: 5 },
+
+      // The enterable house — deep in the boss arena rather than near
+      // spawn, so it's a real destination and not just a pit stop. Placed
+      // more than arenaRadius (16) from the boss's arena center (0,78) so
+      // the boss (no wall collision) can never wander into/through it.
+      { x: -13, y: 1.4, z: 90, w: 4, h: 2.8, d: 4, house: true },
+
+      // Shared house interior, reused by the key-house door. Built far from
+      // the outdoor level (no other geometry near x=300) so it can't be
+      // seen or walked into by accident; only reachable via a door.
+      { x: 300, y: -0.5, z: 0, w: 12, h: 1, d: 12, color: 0x9c7a4a },
+      { x: 300, y: 2, z: -6, w: 12, h: 4, d: 0.6, color: 0xcbb994 },
+      { x: 306, y: 2, z: 0, w: 0.6, h: 4, d: 12, color: 0xcbb994 },
+      { x: 294, y: 2, z: 0, w: 0.6, h: 4, d: 12, color: 0xcbb994 },
+      // (south side, z=6, is left open — the return door sits there; if the
+      // player somehow walks off the floor's edge, the usual fall-and-
+      // respawn-at-lastSafe safety net just drops them back on it.)
+
+      // A small shed in the plaza — the couch-smashing mini-game. Doesn't
+      // need a key, it's meant to be an easy early find.
+      { x: 7, y: 1.4, z: 15, w: 3, h: 2.8, d: 3, house: true },
+      // Its own interior, same reused pattern, offset to x=400.
+      { x: 400, y: -0.5, z: 0, w: 12, h: 1, d: 12, color: 0x9c7a4a },
+      { x: 400, y: 2, z: -6, w: 12, h: 4, d: 0.6, color: 0xcbb994 },
+      { x: 406, y: 2, z: 0, w: 0.6, h: 4, d: 12, color: 0xcbb994 },
+      { x: 394, y: 2, z: 0, w: 0.6, h: 4, d: 12, color: 0xcbb994 },
+
+      // A house at the far north end, near the key-house — the kitchen
+      // heist mini-game. Also outside the boss's arenaRadius (16 from
+      // (0,78)) for the same reason the key-house is.
+      { x: 13, y: 1.4, z: 90, w: 4, h: 2.8, d: 4, house: true },
+      // Its own interior, offset to x=500. A bit bigger-feeling: the
+      // "counter" the fish sits on is a real platform, not just a prop.
+      { x: 500, y: -0.5, z: 0, w: 12, h: 1, d: 12, color: 0x9c7a4a },
+      { x: 500, y: 2, z: -6, w: 12, h: 4, d: 0.6, color: 0xcbb994 },
+      { x: 506, y: 2, z: 0, w: 0.6, h: 4, d: 12, color: 0xcbb994 },
+      { x: 494, y: 2, z: 0, w: 0.6, h: 4, d: 12, color: 0xcbb994 },
+      { x: 500.5, y: -0.15, z: -5.3, w: 1.3, h: 0.7, d: 0.9, color: 0x8a6d3b },
+
+      // Stepping stones leading up to the water crossing.
+      { x: 0, y: 0.5, z: 8, w: 3, h: 1, d: 3 },
+      { x: 0, y: 0.5, z: 13, w: 3, h: 1, d: 3 },
+
+      // Bounce pads across the stream — short, gently-offset hops.
+      { x: 0, y: 0.3, z: 17.5, w: 2.6, h: 0.4, d: 2.6, bouncy: true },
+      { x: 1.3, y: 0.3, z: 21.5, w: 2.6, h: 0.4, d: 2.6, bouncy: true },
+      { x: -1.3, y: 0.3, z: 25.5, w: 2.6, h: 0.4, d: 2.6, bouncy: true },
+      { x: 1.3, y: 0.3, z: 29.5, w: 2.6, h: 0.4, d: 2.6, bouncy: true },
+      { x: 0, y: 0.3, z: 33.5, w: 2.6, h: 0.4, d: 2.6, bouncy: true },
+
+      // Landing after the crossing.
+      { x: 0, y: 0.5, z: 38, w: 6, h: 1, d: 4 },
+
+      // Gate: solid until goal.collectiblesRequired is met, then despawns
+      // (see checkGate() in main.js). Placed before the climbable wall so
+      // the boss wing is unreachable without exploring for supplies first.
+      { x: 0, y: 2, z: 42, w: 18, h: 4, d: 1, gate: true, color: 0x6b4a2f },
+
+      // Climbable wall + top ledge — spans the full corridor width so it
+      // can't be walked around, only over.
+      { x: 0, y: 4, z: 45, w: 18, h: 8, d: 1, climbable: true },
+      { x: 0, y: 8.2, z: 45, w: 10, h: 0.4, d: 3 },
+
+      // Stair-step descent on the far side of the wall.
+      { x: 0, y: 6.5, z: 48, w: 4, h: 1, d: 3 },
+      { x: 0, y: 4.5, z: 51, w: 4, h: 1, d: 3 },
+      { x: 0, y: 2.5, z: 54, w: 4, h: 1, d: 3 },
+      { x: 0, y: 0.5, z: 57, w: 6, h: 1, d: 4 },
+
+      ...boundaries,
+      ...houses,
+    ],
+
+    water: [
+      { x: 0, z: 25.5, w: 18, d: 20 },
+    ],
+
+    collectibles: [
+      // Spawn.
+      { type: 'milk', x: -3, y: 0.4, z: 3 },
+      { type: 'milk', x: 3, y: 0.4, z: 3 },
+      // Plaza main path.
+      { type: 'tuna', x: 0, y: 1.3, z: 8 },
+      { type: 'tuna', x: 0, y: 1.3, z: 13 },
+      // West room (hidden side branch) — also where the house key is.
+      { type: 'milk', x: -13, y: 0.4, z: 8 },
+      { type: 'tuna', x: -15, y: 0.4, z: 10 },
+      { type: 'tuna', x: -13, y: 0.4, z: 12 },
+      { type: 'key', x: -16, y: 0.4, z: 8 },
+      // East lookout tower (vertical side branch).
+      { type: 'tuna', x: 14, y: 6.7, z: 9 },
+      { type: 'tuna', x: 14, y: 6.7, z: 11 },
+      // Water crossing.
+      { type: 'tuna', x: 0, y: 0.9, z: 17.5 },
+      { type: 'tuna', x: 1.3, y: 0.9, z: 21.5 },
+      { type: 'tuna', x: -1.3, y: 0.9, z: 25.5 },
+      { type: 'tuna', x: 1.3, y: 0.9, z: 29.5 },
+      { type: 'tuna', x: 0, y: 0.9, z: 33.5 },
+      // Past the gate: wall-top + stairs.
+      { type: 'milk', x: -2, y: 8.7, z: 45 },
+      { type: 'milk', x: 2, y: 8.7, z: 45 },
+      { type: 'tuna', x: 0, y: 7.3, z: 48 },
+      { type: 'tuna', x: 0, y: 5.3, z: 51 },
+      { type: 'tuna', x: 0, y: 3.3, z: 54 },
+      { type: 'milk', x: -3, y: 1.3, z: 61 },
+      { type: 'milk', x: 3, y: 1.3, z: 61 },
+      // A little reward waiting inside the house. Kept well clear of the
+      // door's arrival spot (300,1,-3) — pickup radius is 0.9, so anything
+      // closer than that gets eaten the instant you walk in.
+      { type: 'milk', x: 296, y: 0.4, z: -2 },
+      { type: 'tuna', x: 304, y: 0.4, z: -2 },
+      // The stolen fish, sitting on the kitchen counter next to Granny —
+      // see `granny` below. Picking it up doesn't grant tuna/milk directly;
+      // it sets player.hasStolenFish, resolved by escaping through a door
+      // (checkDoors) or getting caught (checkGranny), both in main.js.
+      { type: 'fish', x: 500.5, y: 0.35, z: -5.3 },
+    ],
+
+    // Bidirectional teleports. `to` is where the player lands; walking
+    // within `radius` of a door's x/z and pressing F triggers it (see
+    // checkDoors() in main.js). The front door is locked until the key
+    // (in the west room) is found.
+    doors: [
+      { // Key-house front door, flush against its front wall (z=88).
+        x: -13, y: 0, z: 87.85, ry: 0, radius: 1.1, locked: true,
+        to: { x: 300, y: 1, z: -3 },
+      },
+      { x: 300, y: 0, z: 4, ry: Math.PI, to: { x: -13, y: 1, z: 87.0 } },
+
+      // Couch-shed door — no key needed, meant to be an easy early find.
+      { x: 7, y: 0, z: 13.35, ry: 0, radius: 1.0, to: { x: 400, y: 1, z: 0 } },
+      { x: 400, y: 0, z: 4, ry: Math.PI, to: { x: 7, y: 1, z: 12.8 } },
+
+      // Kitchen-house door — also unlocked (this mini-game's "lock" is
+      // Granny, not a key).
+      { x: 13, y: 0, z: 87.85, ry: 0, radius: 1.1, to: { x: 500, y: 1, z: -2 } },
+      { x: 500, y: 0, z: 4, ry: Math.PI, to: { x: 13, y: 1, z: 87.0 } },
+    ],
+
+    // Couch mini-game: attack it (Space) enough times and it breaks open.
+    destructibles: [
+      {
+        x: 400, y: 0, z: -2, hp: 6, radius: 1.1,
+        rewards: [
+          { type: 'tuna', dx: -0.9, dz: 0.4 },
+          { type: 'tuna', dx: 0.9, dz: 0.4 },
+          { type: 'milk', dx: 0, dz: -0.7 },
+        ],
+      },
+    ],
+
+    // Kitchen heist mini-game: grab the fish (in `collectibles` above) and
+    // get out a door before her suspicion (checkGranny() in main.js) maxes
+    // out. exitTo is where getting caught dumps the player.
+    granny: {
+      x: 500, y: 0, z: -5, ry: 0, noticeRadius: 2.6,
+      exitTo: { x: 13, y: 1, z: 87.0 },
+    },
+
+    enemies: [
+      {
+        // Guards the plaza's main path, well outside spawn's radius so
+        // Benito doesn't start the game already being mauled.
+        x: 4, y: 0, z: 11,
+        patrolA: { x: -4, z: 11 }, patrolB: { x: 4, z: 11 },
+        hp: 2, speed: 2.2, chaseSpeed: 4, aggroRadius: 6,
+      },
+      {
+        // West room.
+        x: -13, y: 0, z: 10,
+        patrolA: { x: -16, z: 10 }, patrolB: { x: -11, z: 10 },
+        hp: 2, speed: 2, chaseSpeed: 3.6, aggroRadius: 5,
+      },
+      {
+        // East tower rooftop.
+        x: 14, y: 6.2, z: 10,
+        patrolA: { x: 14, z: 8 }, patrolB: { x: 14, z: 12 },
+        hp: 2, speed: 1.8, chaseSpeed: 3.2, aggroRadius: 5,
+      },
+      {
+        // Gauntlet, escalating toward the boss.
+        x: 0, y: 0, z: 57,
+        patrolA: { x: -4, z: 57 }, patrolB: { x: 4, z: 57 },
+        hp: 2, speed: 2.4, chaseSpeed: 4.4, aggroRadius: 7,
+      },
+      {
+        x: 0, y: 0, z: 60,
+        patrolA: { x: -3, z: 60 }, patrolB: { x: 3, z: 60 },
+        hp: 3, speed: 2.6, chaseSpeed: 4.6, aggroRadius: 7,
+      },
+      {
+        x: 0, y: 0, z: 63,
+        patrolA: { x: -3, z: 63 }, patrolB: { x: 3, z: 63 },
+        hp: 3, speed: 2.6, chaseSpeed: 4.8, aggroRadius: 8,
+      },
+      {
+        x: 0, y: 0, z: 68,
+        patrolA: { x: -3, z: 68 }, patrolB: { x: 3, z: 68 },
+        hp: 4, speed: 2.9, chaseSpeed: 5.2, aggroRadius: 9,
+      },
+    ],
+
+    boss: {
+      x: 0, y: 0, z: 78,
+      hp: 6, arenaRadius: 16, awakeRadius: 20,
+      speed: 1.7, fireInterval: 3.2, windupDuration: 0.7,
+      projectileSpeed: 6, projectileDamage: 1,
+    },
+
+    hints: [
+      { x: 0, z: 5, radius: 6, text: 'El jardin se abre aqui: hay rincones a los costados con provisiones extra, y un gato negro ronda el camino central.' },
+      { x: -13, z: 9, radius: 5, text: 'Encontraste un rincon escondido... y una llave! Debe abrir alguna puerta en algun lugar lejano.' },
+      { x: 14, z: 9, radius: 6, text: 'Esa pared tambien se trepa: mantene E apretado para subir al techo.' },
+      { x: 0, z: 15, radius: 4, text: 'El arroyo se cruza saltando entre las plataformas rosas: te impulsan solas al aterrizar.' },
+      { x: 0, z: 36, radius: 5, text: 'Ese porton necesita 10 provisiones para abrirse. Volve a explorar los rincones si te faltan.' },
+      { x: 0, z: 42.5, radius: 6, text: 'Esa pared se escala: acercate y mantene E apretado para trepar.' },
+      { x: 0, z: 61, radius: 5, text: 'El Gato Grande espera adelante. Cuando abra la boca y gruna, va a largar gases: esquivalos y aprovecha para aranarlo de cerca.' },
+      { x: -13, z: 90, radius: 6, text: 'Esta debe ser la puerta de la llave! Presiona F para entrar.' },
+      { x: 7, z: 15, radius: 5, text: 'Un cobertizo con un sofa sospechoso. Presiona F para entrar... y despues probá arañarlo (Espacio).' },
+      { x: 13, z: 90, radius: 6, text: 'La cocina de una abuela gatera. Hay un pescado en la mesada... pero no le quites el ojo de encima a ella.' },
+    ],
+
+    goal: { collectiblesRequired: 10 },
+  };
+
+  LEVEL_REGISTRY.push(LEVEL_GARDEN);
+})();

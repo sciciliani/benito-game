@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Benito: Aventura Felina</title>
+<link rel="stylesheet" href="css/style.css?v=20260813b" />
+</head>
+<body>
+  <div id="hud">
+    <div id="hearts"></div>
+    <div id="counters">
+      <div class="counter"><span class="icon">🥛</span><span id="milkCount">0</span></div>
+      <div class="counter"><span class="icon">🥫</span><span id="tunaCount">0</span></div>
+    </div>
+    <div id="bossBarWrap" class="hidden">
+      <div id="bossName">Jefe</div>
+      <div id="bossBarBg"><div id="bossBarFill"></div></div>
+    </div>
+    <div id="superBarWrap">
+      <div id="superLabel">Super (S)</div>
+      <div id="superBarBg"><div id="superBarFill"></div></div>
+    </div>
+  </div>
+
+  <div id="messageBanner" class="hidden"></div>
+
+  <div id="startScreen">
+    <h1>🐱 Benito: Aventura Felina 🐱</h1>
+    <p class="subtitle">Un prototipo estilo Mario 64, pero con gatos</p>
+    <div class="story">
+      Benito, un gato blanco muy hambriento, debe recorrer el jardín juntando
+      <strong>cartones de leche</strong> y <strong>latas de atún</strong>,
+      esquivando y arañando a los gatos negros rivales, ¡hasta enfrentar al
+      temible Gato Grande al final del nivel!
+    </div>
+    <div class="controls">
+      <div><b>Flechas ↑ ↓ ← →</b> — Moverse</div>
+      <div><b>A D</b> — Girar cámara</div>
+      <div><b>W Q</b> — Subir/bajar cámara</div>
+      <div><b>Shift</b> — Correr</div>
+      <div><b>Ctrl</b> — Saltar</div>
+      <div><b>Espacio</b> — Arañazo (atacar)</div>
+      <div><b>E</b> — Trepar (junto a una pared marcada)</div>
+      <div><b>F</b> — Entrar/salir (junto a una puerta)</div>
+      <div><b>S</b> — Super Zarpazo (cuando la barra esta llena)</div>
+    </div>
+    <div id="startButtons">
+      <button id="startBtn" disabled>Cargando modelo 3D…</button>
+      <button id="storyBtn" class="secondaryBtn" type="button">Ver Historia</button>
+    </div>
+  </div>
+
+  <div id="endScreen" class="hidden">
+    <h1 id="endTitle">¡Nivel completado!</h1>
+    <p id="endStats"></p>
+    <button id="restartBtn">Jugar de nuevo</button>
+  </div>
+
+  <div id="storyModal" class="hidden">
+    <div id="storyModalInner">
+      <button id="storyClose" type="button" aria-label="Cerrar">✕</button>
+      <div id="storyImageWrap">
+        <img id="storyImage" src="" alt="Panel de la historia de Benito" />
+        <div id="storySpinner"><div class="spinnerRing"></div></div>
+        <div id="storyScrollClip"><div id="storyScrollText"></div></div>
+      </div>
+      <div id="storyNav">
+        <button id="storyPrev" type="button">&larr; Atras</button>
+        <span id="storyCounter"></span>
+        <button id="storyNext" type="button">Siguiente &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/vendor/three.min.js?v=20260813b"></script>
+  <script src="js/vendor/fflate.min.js?v=20260813b"></script>
+  <script src="js/vendor/FBXLoader.js?v=20260813b"></script>
+  <script src="js/vendor/SkeletonUtils.js?v=20260813b"></script>
+  <script src="js/input.js?v=20260813b"></script>
+  <script src="js/audio.js?v=20260813b"></script>
+  <script src="js/music.js?v=20260813b"></script>
+  <script src="js/textures.js?v=20260813b"></script>
+  <script src="js/catModel.js?v=20260813b"></script>
+  <script src="js/silverpaw.js?v=20260813b"></script>
+  <script src="js/props.js?v=20260813b"></script>
+  <script src="js/level.js?v=20260813b"></script>
+  <script src="js/collectible.js?v=20260813b"></script>
+  <script src="js/player.js?v=20260813b"></script>
+  <script src="js/enemy.js?v=20260813b"></script>
+  <script src="js/boss.js?v=20260813b"></script>
+  <script src="js/destructible.js?v=20260813b"></script>
+  <script src="js/granny.js?v=20260813b"></script>
+  <script src="js/levels/level-garden.js?v=20260813b"></script>
+  <script src="js/levels/level-demo.js?v=20260813b"></script>
+  <script src="js/story.js?v=20260813b"></script>
+  <script src="js/main.js?v=20260813b"></script>
+</body>
+</html>
