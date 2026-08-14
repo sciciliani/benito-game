@@ -14,14 +14,21 @@
 //   57..98  enemy gauntlet + boss arena (widens back to 18, unchanged shape)
 
 (function () {
-  // h=3.4 (not the double jump's fault: it's kept at full strength — see
-  // player.js — and this is just tall enough that even its worst-case
-  // ~2.93 reach still can't clear the fence, with margin).
+  // h=8.2 — taller than it looks like it should need to be, because the
+  // relevant worst case isn't jumping from flat ground (that alone only
+  // needs ~3.95): it's launching a double jump from the house ROOF itself
+  // (topY 3.5), which — combined with running speed carrying him well past
+  // the hedge horizontally before he comes back down — lets him reach up
+  // to 3.5 + 3.95 =~ 7.45 at essentially any point along the way,
+  // including right over the hedge. Sizing purely by ground-jump height or
+  // by horizontal gap to the roof (both tried first) still let that
+  // through; only clearing the hedge past his absolute reachable ceiling
+  // closes it regardless of timing.
   function hedgeCol(x, z0, z1, segLen) {
     const segs = [];
     for (let z = z0; z < z1; z += segLen) {
       const len = Math.min(segLen, z1 - z);
-      segs.push({ x, y: 1.7, z: z + len / 2, w: 1.8, h: 3.4, d: len + 0.4, hedge: true });
+      segs.push({ x, y: 4.1, z: z + len / 2, w: 1.8, h: 8.2, d: len + 0.4, hedge: true });
     }
     return segs;
   }
@@ -29,7 +36,7 @@
     const segs = [];
     for (let x = x0; x < x1; x += segLen) {
       const len = Math.min(segLen, x1 - x);
-      segs.push({ x: x + len / 2, y: 1.7, z, w: len + 0.4, h: 3.4, d: 1.8, hedge: true });
+      segs.push({ x: x + len / 2, y: 4.1, z, w: len + 0.4, h: 8.2, d: 1.8, hedge: true });
     }
     return segs;
   }
@@ -87,14 +94,14 @@
       // matching gap cut into the boundary hedge above) is the only way
       // in. Opens once 3 rival cats have been defeated (see
       // world.catsDefeated, incremented in enemy.js/player.js), not by
-      // collecting items. Only as tall as the hedge it sits in (h=3.6 vs
-      // the hedge's 3.4), not the far corridor gate's full h=5 — it reads
-      // as part of the fence line, not a separate tower. Same
-      // steel-door/forbidden-sign look as before (see level.js) but sized
-      // for a gap in a column wall: width (x) is the thin dimension, depth
-      // (z) is the wide one.
+      // collecting items. Matches the hedge's height (8.2, see the comment
+      // on hedgeCol above for why it's that tall) plus a touch more (8.4)
+      // so it reads as part of the fence line, not a shorter weak point in
+      // it. Same steel-door/forbidden-sign look as before (see level.js)
+      // but sized for a gap in a column wall: width (x) is the thin
+      // dimension, depth (z) is the wide one.
       {
-        x: -18, y: 1.8, z: 11.5, w: 1.2, h: 3.6, d: 2.6, gate: true,
+        x: -18, y: 4.2, z: 11.5, w: 1.2, h: 8.4, d: 2.6, gate: true,
         gateRequiresKills: 3,
         gateOpenMessage: 'El porton se abrio! El jardin esta abierto.',
         gateLockedMessage: 'Esta puerta solo se abrira al haber vencido a tres gatos.',
@@ -104,14 +111,19 @@
       // the approach (see enemies below). Slightly bigger than before, with
       // a flat roof (flatRoof: true — see level.js) instead of the usual
       // decorative cone, since this one is meant to be climbed: it's a cat,
-      // and these are walls, so three of the four sides (everywhere but the
-      // front door) are climbable, all leading up to the same rooftop deck
-      // with a rival cat to fight on it.
+      // and these are walls, so the back and west sides are climbable (not
+      // the front door). Deliberately NOT the east side, which faces the
+      // entrance gate/hedge (x=-18) — the rooftop deck has to extend out
+      // to about x=-22 to give a climbing player room to mantle onto it,
+      // and that's close enough to the gate that a player on the roof
+      // could double-jump clean over the hedge into the garden, skipping
+      // the gate entirely. Keeping the deck flush with the house's own
+      // east edge instead (not overhanging toward the gate) closes that
+      // off while still leaving two full climbable sides.
       { x: -27, y: 1.6, z: 6, w: 6, h: 3.2, d: 6, house: true, flatRoof: true },
       { x: -27, y: 1.6, z: 9.4, w: 4, h: 3.2, d: 0.8, climbable: true }, // back (south) wall
-      { x: -23.6, y: 1.6, z: 6, w: 0.8, h: 3.2, d: 4, climbable: true }, // east side wall
       { x: -30.4, y: 1.6, z: 6, w: 0.8, h: 3.2, d: 4, climbable: true }, // west side wall
-      { x: -27, y: 3.35, z: 7, w: 10, h: 0.3, d: 8 },
+      { x: -28, y: 3.35, z: 7, w: 8, h: 0.3, d: 8 },
       // Its own interior, same reused pattern, offset to x=400.
       { x: 400, y: -0.5, z: 0, w: 12, h: 1, d: 12, color: 0x9c7a4a },
       { x: 400, y: 2, z: -6, w: 12, h: 4, d: 0.6, color: 0xcbb994 },
@@ -120,13 +132,14 @@
       { x: 400, y: 2, z: 6, w: 12, h: 4, d: 0.6, color: 0xcbb994 }, // south wall
 
       // The granny/kitchen house — a bit further out than the couch house.
-      // Same treatment: bigger, flat roof, three climbable sides (all but
-      // the front door) leading to a rooftop deck with a rival cat.
+      // Same treatment: bigger, flat roof, back and west sides climbable
+      // (not the east side, for the same reason as the couch house — see
+      // its comment above; keeps the roof deck from overhanging toward the
+      // entrance gate).
       { x: -27, y: 1.6, z: 18, w: 6, h: 3.2, d: 6, house: true, flatRoof: true },
       { x: -27, y: 1.6, z: 21.4, w: 4, h: 3.2, d: 0.8, climbable: true }, // back (south) wall
-      { x: -23.6, y: 1.6, z: 18, w: 0.8, h: 3.2, d: 4, climbable: true }, // east side wall
       { x: -30.4, y: 1.6, z: 18, w: 0.8, h: 3.2, d: 4, climbable: true }, // west side wall
-      { x: -27, y: 3.35, z: 19, w: 10, h: 0.3, d: 8 },
+      { x: -28, y: 3.35, z: 19, w: 8, h: 0.3, d: 8 },
 
       // The enterable key-house — deep in the boss arena rather than near
       // spawn, so it's a real destination and not just a pit stop. Placed
@@ -423,8 +436,8 @@
 
     hints: [
       { x: -22, z: 10, radius: 7, text: 'Benito desperto afuera, cerca de una casa con un sillon. Cuidado con los gatos rivales que rondan el campo abierto. Mas al este, del otro lado de la pared, esta el resto del jardin.' },
-      { x: -27, z: 6, radius: 5, text: 'La casa del sillon sospechoso. Presiona F para entrar... y despues probá arañarlo (Espacio). Cualquier pared menos la del frente se trepa: hay un gato rival esperando en el techo.' },
-      { x: -27, z: 18, radius: 6, text: 'La cocina de una abuela gatera. El pescado esta arriba de la mesa: subite a la silla primero. Si te agarra con el pescado, va a salir corriendo detras tuyo con la escoba! Esta casa tambien se trepa por los costados.' },
+      { x: -27, z: 6, radius: 5, text: 'La casa del sillon sospechoso. Presiona F para entrar... y despues probá arañarlo (Espacio). La pared de atras y la del oeste se trepan: hay un gato rival esperando en el techo.' },
+      { x: -27, z: 18, radius: 6, text: 'La cocina de una abuela gatera. El pescado esta arriba de la mesa: subite a la silla primero. Si te agarra con el pescado, va a salir corriendo detras tuyo con la escoba! Esta casa tambien se trepa por atras y por el oeste.' },
       { x: -13, z: 9, radius: 5, text: 'Encontraste un rincon escondido... y una llave! Debe abrir alguna puerta en algun lugar lejano.' },
       { x: 0, z: 15, radius: 4, text: 'El arroyo se cruza saltando entre las plataformas rosas: te impulsan solas al aterrizar.' },
       { x: 0, z: 42.5, radius: 6, text: 'Esa pared se escala: acercate y mantene E apretado para trepar.' },

@@ -88,11 +88,12 @@ class Player {
     this.speed = 6.5;
     this.runSpeed = 10.5;
     this.jumpVelocity = 8.6;
-    // Full-strength double jump (not nerfed) — worst case (second jump
-    // pressed exactly at the first jump's ~1.68 apex) reaches ~2.93 total,
-    // which the hedge walls (h=3.4, see level-garden.js) are built tall
-    // enough to still block, with margin, instead of capping the jump.
-    this.airJumpVelocity = 7.4;
+    // Strong enough that a well-timed double jump (second press in roughly
+    // the back half of the first jump's ascent) clears the house rooftops
+    // (topY 3.5) — worst case (pressed exactly at the ~1.68 apex) reaches
+    // ~3.95. The hedge walls (h=4.4, see level-garden.js) are built tall
+    // enough to still block even that worst case, with margin.
+    this.airJumpVelocity = 10;
     this.gravity = -22;
     this.climbSpeed = 3.2;
     this.maxJumps = 2; // ground jump + one mid-air double jump
