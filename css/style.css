@@ -127,6 +127,7 @@ button.secondaryBtn:active { transform: translateY(3px); box-shadow: none; }
 #storyNav button { font-size: 16px; padding: 8px 20px; }
 #storyNav button:disabled { opacity: 0.4; cursor: default; }
 #storyCounter { color: #fff; opacity: 0.8; font-size: 14px; }
+#storyFastHint { color: #fff; opacity: 0.55; font-size: 12px; margin-top: 6px; text-align: center; }
 #storyClose {
   position: absolute; top: -14px; right: -14px;
   width: 36px; height: 36px; padding: 0; border-radius: 50%;

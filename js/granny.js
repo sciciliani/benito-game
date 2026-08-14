@@ -1,17 +1,33 @@
-// Stationary NPC guarding the kitchen. Doesn't move or attack directly —
-// she just builds suspicion while the player is near her, and main.js's
-// checkGranny() resolves what happens when it maxes out (only a problem if
-// the player is actually holding the stolen fish at that point).
+// The kitchen heist NPC. Wanders a patrol route while calm, muttering
+// gibberish now and then. The instant the player grabs the fish (see
+// enrage(), called from main.js's checkGranny()) she shouts and directly
+// chases the player's position, broom swinging — but there's a short grace
+// period (catchImmuneTimer) before she can actually land a hit, so grabbing
+// the fish doesn't feel like an instant ambush even if she's already close.
+// She also can't walk through the room's furniture (obstacles), same as the
+// player — that's what makes dodging around it worthwhile.
 class Granny {
   constructor(cfg) {
     this.position = new THREE.Vector3(cfg.x, cfg.y, cfg.z);
-    this.noticeRadius = cfg.noticeRadius ?? 3.2;
-    this.exitTo = cfg.exitTo ?? null; // where the player lands if caught
-    this.suspicion = 0; // 0..1
+    this.patrolA = new THREE.Vector2(cfg.patrolA?.x ?? cfg.x, cfg.patrolA?.z ?? cfg.z);
+    this.patrolB = new THREE.Vector2(cfg.patrolB?.x ?? cfg.x, cfg.patrolB?.z ?? cfg.z);
+    this.patrolTarget = this.patrolB;
+    this.patrolSpeed = cfg.patrolSpeed ?? 1.5;
+    // Faster than Benito's walk (6.5) but slower than his run (10.5) — she
+    // can't be outwalked, but running away is a real, necessary option.
+    this.chaseSpeed = cfg.chaseSpeed ?? 6.8;
+    this.catchRadius = cfg.catchRadius ?? 1.0;
+    this.exitTo = cfg.exitTo ?? null;
+    this.obstacles = cfg.obstacles ?? []; // furniture circles: {x,z,radius} — see level-garden.js
+    this.radius = 0.3;
+    this.angry = false;
+    this.catchImmuneTimer = 0;
+    this._mutterTimer = 2 + Math.random() * 3;
+
     this.mesh = this._build();
     this.mesh.position.copy(this.position);
-    if (cfg.ry) this.mesh.rotation.y = cfg.ry;
     this._baseRy = cfg.ry ?? 0;
+    this.mesh.rotation.y = this._baseRy;
   }
 
   _build() {
@@ -42,25 +58,99 @@ class Granny {
       g.add(arm);
     }
 
+    // The broom: wooden handle + a straw head, held out to one side. Its
+    // rotation gets animated in update() — resting while calm, swinging
+    // wildly while chasing.
+    const broom = new THREE.Group();
+    const handle = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.025, 0.025, 0.9, 6),
+      new THREE.MeshLambertMaterial({ color: 0x8a5a3c })
+    );
+    handle.position.y = 0.45;
+    broom.add(handle);
+    const straw = new THREE.Mesh(
+      new THREE.ConeGeometry(0.14, 0.28, 8),
+      new THREE.MeshLambertMaterial({ color: 0xe0c060 })
+    );
+    straw.position.y = -0.03;
+    straw.rotation.x = Math.PI;
+    broom.add(straw);
+    broom.position.set(0.4, 0.55, 0.1);
+    broom.rotation.z = -0.4;
+    g.add(broom);
+
     this._headMesh = head;
+    this._skinMat = skinMat;
+    this._broom = broom;
     return g;
   }
 
-  update(dt, player) {
-    const dx = player.position.x - this.position.x, dz = player.position.z - this.position.z;
-    const near = Math.hypot(dx, dz) < this.noticeRadius && Math.abs(player.position.y - this.position.y) < 2.5;
-    // Rises faster once the fish is actually gone — a lot harder to not
-    // notice an empty counter than a cat quietly sniffing around.
-    const rate = player.hasStolenFish ? 0.42 : 0.16;
-    this.suspicion = THREE.MathUtils.clamp(this.suspicion + (near ? rate : -0.3) * dt, 0, 1);
+  enrage() {
+    if (this.angry) return;
+    this.angry = true;
+    // A couple seconds where she's visibly furious and coming for you, but
+    // can't actually land a hit yet — time to get moving after the grab
+    // before the chase becomes a real threat.
+    this.catchImmuneTimer = 1.8;
+    SFX.playGrannyAngryShout();
+  }
 
-    if (this.suspicion > 0.08) {
-      this.mesh.rotation.y = Math.atan2(dx, dz);
-    } else {
-      this.mesh.rotation.y = this._baseRy;
+  calm() {
+    this.angry = false;
+    this._skinMat.color.set(0xf0c9a0);
+  }
+
+  // Keeps her (and the player, symmetrically, from the player's own
+  // collision) from cutting straight through furniture — a plain
+  // "push out of the circle" since she has no other pathfinding.
+  _avoidObstacles() {
+    for (const ob of this.obstacles) {
+      const dx = this.position.x - ob.x, dz = this.position.z - ob.z;
+      const minDist = ob.radius + this.radius;
+      const distSq = dx * dx + dz * dz;
+      if (distSq >= minDist * minDist) continue;
+      const dist = Math.sqrt(distSq);
+      const nx = dist > 0.0001 ? dx / dist : 1;
+      const nz = dist > 0.0001 ? dz / dist : 0;
+      const overlap = minDist - dist;
+      this.position.x += nx * overlap;
+      this.position.z += nz * overlap;
     }
-    // A little more red in the cheeks as she gets suspicious.
-    const heat = this.suspicion;
-    this._headMesh.material.color.setRGB(0.94, 0.79 - heat * 0.35, 0.63 - heat * 0.35);
+  }
+
+  update(dt, player) {
+    if (this.catchImmuneTimer > 0) this.catchImmuneTimer = Math.max(0, this.catchImmuneTimer - dt);
+
+    if (this.angry) {
+      const dx = player.position.x - this.position.x, dz = player.position.z - this.position.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist > 0.05) {
+        this.position.x += (dx / dist) * this.chaseSpeed * dt;
+        this.position.z += (dz / dist) * this.chaseSpeed * dt;
+        this.mesh.rotation.y = Math.atan2(dx, dz);
+      }
+      this._broom.rotation.z = -0.4 + Math.sin(performance.now() * 0.025) * 0.7;
+      this._skinMat.color.set(0xe0784a); // flushed with anger
+    } else {
+      const toTarget = new THREE.Vector2(this.patrolTarget.x - this.position.x, this.patrolTarget.y - this.position.z);
+      const d = toTarget.length();
+      if (d < 0.3) {
+        this.patrolTarget = this.patrolTarget === this.patrolA ? this.patrolB : this.patrolA;
+      } else {
+        toTarget.normalize();
+        this.position.x += toTarget.x * this.patrolSpeed * dt;
+        this.position.z += toTarget.y * this.patrolSpeed * dt;
+        this.mesh.rotation.y = Math.atan2(toTarget.x, toTarget.y);
+      }
+      this._broom.rotation.z = -0.4;
+
+      this._mutterTimer -= dt;
+      if (this._mutterTimer <= 0) {
+        SFX.playGrannyMutter();
+        this._mutterTimer = 4 + Math.random() * 4;
+      }
+    }
+    this._avoidObstacles();
+    this.mesh.position.copy(this.position);
   }
 }

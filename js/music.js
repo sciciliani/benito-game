@@ -54,6 +54,21 @@ const Music = (function () {
       playing = true;
       scheduleLoop();
     },
+    // Called once the AudioContext gets genuinely unlocked by a real user
+    // gesture (see audio.js) after play() already ran while it was still
+    // suspended. Notes scheduled against a context that wasn't actually
+    // running yet aren't reliably timed once it resumes, so this just
+    // throws those out and starts a clean loop from right now instead of
+    // trying to salvage them.
+    kick() {
+      if (!playing) return;
+      clearTimeout(timer);
+      for (const { osc } of activeNodes) {
+        try { osc.stop(); } catch (e) { /* already stopped */ }
+      }
+      activeNodes = [];
+      scheduleLoop();
+    },
     stop() {
       if (!playing) return;
       playing = false;

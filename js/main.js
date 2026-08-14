@@ -160,10 +160,11 @@
           player.hasKey = true;
           showMessage('Encontraste una llave!', 2.5);
         } else if (item.type === 'fish') {
-          // Not banked yet — only pays off if he makes it out a door before
-          // Granny's suspicion maxes out (see checkGranny()/checkDoors()).
+          // Not banked yet — Granny notices instantly and starts chasing
+          // (checkGranny()); only pays off if he makes it out a door with
+          // it still on him (checkDoors()).
           player.hasStolenFish = true;
-          showMessage('Agarraste el pescado! Escapa antes de que te vea!', 3);
+          showMessage('Agarraste el pescado! Corre!', 2.5);
         }
         SFX.playPickup();
       }
@@ -197,24 +198,41 @@
     }
   }
 
-  // Kitchen heist: if Granny's suspicion maxes out while the fish is still
-  // on him (not yet banked by escaping through a door), she catches him —
-  // he loses the fish and gets swept back outside.
+  // Kitchen heist: Granny wanders a patrol route until the fish is stolen,
+  // at which point she instantly notices (no detection radius/suspicion —
+  // she just knows), screams, and directly chases the player. Catching him
+  // costs the fish (which respawns on its table for another attempt) and a
+  // heart, and sweeps him back outside; reaching any door with the fish
+  // still on him banks the reward (see checkDoors()) and calms her down.
   function checkGranny(dt) {
     if (!world.granny) return;
-    const wasBelowWarn = world.granny.suspicion < 0.6;
     world.granny.update(dt, player);
-    if (player.hasStolenFish && wasBelowWarn && world.granny.suspicion >= 0.6) {
-      showMessage('La abuela sospecha algo... corre!', 1.6);
+
+    if (player.hasStolenFish && !world.granny.angry) {
+      world.granny.enrage();
+      showMessage('"MI PESCADO! LA ABUELA ESTA FURIOSA!" — CORRE hacia una puerta!', 3);
     }
-    if (world.granny.suspicion >= 1 && player.hasStolenFish) {
-      player.hasStolenFish = false;
-      world.granny.suspicion = 0.4; // she settles down some, not instantly
-      player.takeDamage(1, world.granny.position);
-      if (world.granny.exitTo) player.position.set(world.granny.exitTo.x, world.granny.exitTo.y, world.granny.exitTo.z);
-      player.velocity.set(0, 0, 0);
-      doorCooldown = 0.6;
-      showMessage('Te atrapo la abuela y te saco a escobazos! Perdiste el pescado.', 3.5);
+    if (!player.hasStolenFish && world.granny.angry) {
+      world.granny.calm(); // he escaped through a door or already got caught
+    }
+
+    // catchImmuneTimer: a short grace period right after enrage() so being
+    // already close to her when you grab the fish doesn't feel like an
+    // instant, unavoidable hit.
+    if (world.granny.angry && world.granny.catchImmuneTimer <= 0) {
+      const dx = player.position.x - world.granny.position.x, dz = player.position.z - world.granny.position.z;
+      const closeOnY = Math.abs(player.position.y - world.granny.position.y) < MELEE_VERTICAL_REACH;
+      if (dx * dx + dz * dz < world.granny.catchRadius * world.granny.catchRadius && closeOnY) {
+        player.hasStolenFish = false;
+        world.granny.calm();
+        player.takeDamage(1, world.granny.position);
+        const fish = world.collectibles.find((c) => c.type === 'fish');
+        if (fish) { fish.collected = false; fish.mesh.visible = true; } // back on the table for next time
+        if (world.granny.exitTo) player.position.set(world.granny.exitTo.x, world.granny.exitTo.y, world.granny.exitTo.z);
+        player.velocity.set(0, 0, 0);
+        doorCooldown = 0.6;
+        showMessage('Te atrapo y te golpeo con la escoba! Perdiste el pescado.', 3.5);
+      }
     }
   }
 

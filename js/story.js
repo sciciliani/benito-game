@@ -72,11 +72,11 @@ Continuara...`,
   const btnNext = document.getElementById('storyNext');
 
   let index = 0;
-  let autoTimer = null;
   let renderToken = 0; // guards against a stale image load resolving after the user already moved on
+  let currentAnim = null; // the live CSSAnimation, so Space-hold can adjust its playbackRate
+  const FAST_RATE = 4;
 
   function render() {
-    clearTimeout(autoTimer);
     counter.textContent = `${index + 1} / ${PANELS.length}`;
     btnPrev.disabled = index === 0;
     btnNext.textContent = index === PANELS.length - 1 ? 'Cerrar' : 'Siguiente →';
@@ -122,11 +122,19 @@ Continuara...`,
       void scrollText.offsetWidth;
       scrollText.style.animationName = 'storyScroll';
 
-      // The animation now ends exactly where we want the auto-advance to
-      // fire (the last line at mid-frame), so just wait out the full
-      // duration instead of a fraction of it.
-      clearTimeout(autoTimer);
-      autoTimer = setTimeout(advance, seconds * 1000);
+      // Drive the auto-advance off the Web Animations API's own completion
+      // signal rather than a hand-timed setTimeout — .finished already
+      // accounts for playbackRate changes (see the Space-hold fast-forward
+      // below), so speeding up the crawl speeds up the advance too, for
+      // free, instead of needing separate remaining-time bookkeeping.
+      currentAnim = scrollText.getAnimations()[0];
+      if (currentAnim) {
+        currentAnim.playbackRate = 1;
+        const myAnim = currentAnim;
+        myAnim.finished.then(() => {
+          if (myToken === renderToken) advance();
+        }).catch(() => {}); // rejects if cancelled (panel changed before finishing) — fine
+      }
     }
 
     if (img.src === targetSrc && img.complete) {
@@ -151,7 +159,6 @@ Continuara...`,
   }
 
   function close() {
-    clearTimeout(autoTimer);
     Music.stop();
     modal.classList.add('hidden');
   }
@@ -170,6 +177,13 @@ Continuara...`,
     if (e.code === 'Escape') close();
     else if (e.code === 'ArrowRight') btnNext.click();
     else if (e.code === 'ArrowLeft' && index > 0) { index--; render(); }
+    else if (e.code === 'Space') {
+      e.preventDefault(); // don't let it scroll the page behind the modal
+      if (currentAnim) currentAnim.playbackRate = FAST_RATE;
+    }
+  });
+  document.addEventListener('keyup', (e) => {
+    if (e.code === 'Space' && currentAnim) currentAnim.playbackRate = 1;
   });
 
   // First time ever on this browser: show the story automatically instead

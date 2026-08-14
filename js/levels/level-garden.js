@@ -87,9 +87,7 @@
       { x: 300, y: 2, z: -6, w: 12, h: 4, d: 0.6, color: 0xcbb994 },
       { x: 306, y: 2, z: 0, w: 0.6, h: 4, d: 12, color: 0xcbb994 },
       { x: 294, y: 2, z: 0, w: 0.6, h: 4, d: 12, color: 0xcbb994 },
-      // (south side, z=6, is left open — the return door sits there; if the
-      // player somehow walks off the floor's edge, the usual fall-and-
-      // respawn-at-lastSafe safety net just drops them back on it.)
+      { x: 300, y: 2, z: 6, w: 12, h: 4, d: 0.6, color: 0xcbb994 }, // south wall (the return door sits flush against it)
 
       // A small shed in the plaza — the couch-smashing mini-game. Doesn't
       // need a key, it's meant to be an easy early find.
@@ -99,18 +97,41 @@
       { x: 400, y: 2, z: -6, w: 12, h: 4, d: 0.6, color: 0xcbb994 },
       { x: 406, y: 2, z: 0, w: 0.6, h: 4, d: 12, color: 0xcbb994 },
       { x: 394, y: 2, z: 0, w: 0.6, h: 4, d: 12, color: 0xcbb994 },
+      { x: 400, y: 2, z: 6, w: 12, h: 4, d: 0.6, color: 0xcbb994 }, // south wall
 
-      // A house at the far north end, near the key-house — the kitchen
-      // heist mini-game. Also outside the boss's arenaRadius (16 from
-      // (0,78)) for the same reason the key-house is.
-      { x: 13, y: 1.4, z: 90, w: 4, h: 2.8, d: 4, house: true },
-      // Its own interior, offset to x=500. A bit bigger-feeling: the
-      // "counter" the fish sits on is a real platform, not just a prop.
-      { x: 500, y: -0.5, z: 0, w: 12, h: 1, d: 12, color: 0x9c7a4a },
-      { x: 500, y: 2, z: -6, w: 12, h: 4, d: 0.6, color: 0xcbb994 },
-      { x: 506, y: 2, z: 0, w: 0.6, h: 4, d: 12, color: 0xcbb994 },
-      { x: 494, y: 2, z: 0, w: 0.6, h: 4, d: 12, color: 0xcbb994 },
-      { x: 500.5, y: -0.15, z: -5.3, w: 1.3, h: 0.7, d: 0.9, color: 0x8a6d3b },
+      // The kitchen-heist house — in the plaza alongside the couch shed
+      // (not deep in the boss arena) so it's found while exploring, not
+      // stumbled into mid-boss-fight.
+      { x: -6, y: 1.4, z: 15, w: 4, h: 2.8, d: 4, house: true },
+
+      // Its own interior, offset to x=500 — a proper kitchen, 18x16, much
+      // bigger than the other two interiors since Granny needs real room
+      // to wander and the player needs room to run from her.
+      { x: 500, y: -0.5, z: 0, w: 18, h: 1, d: 16, color: 0xc9a86a }, // tile floor
+      { x: 500, y: 2, z: -8, w: 18, h: 4, d: 0.6, color: 0xcbb994 }, // north wall
+      { x: 509, y: 2, z: 0, w: 0.6, h: 4, d: 16, color: 0xcbb994 }, // east wall
+      { x: 491, y: 2, z: 0, w: 0.6, h: 4, d: 16, color: 0xcbb994 }, // west wall
+      { x: 500, y: 2, z: 8, w: 18, h: 4, d: 0.6, color: 0xcbb994 }, // south wall (return door sits flush against it)
+
+      // Kitchen decor along the west wall: stove, then counter/sink.
+      { x: 494.5, y: 0.4, z: -6.5, w: 1.2, h: 0.8, d: 0.8, color: 0x4a4a4a },
+      { x: 494.5, y: 0.4, z: -3, w: 1.2, h: 0.8, d: 0.8, color: 0xd8d8d8 },
+      // Upper cabinets along the north wall, purely decorative.
+      { x: 495, y: 2.5, z: -7.6, w: 1.6, h: 0.8, d: 0.5, color: 0x9c7a52 },
+      { x: 500, y: 2.5, z: -7.6, w: 1.6, h: 0.8, d: 0.5, color: 0x9c7a52 },
+      { x: 505, y: 2.5, z: -7.6, w: 1.6, h: 0.8, d: 0.5, color: 0x9c7a52 },
+
+      // The fish's table — deliberately taller than Benito's max jump
+      // height (~1.68) so it can't be reached directly from the ground;
+      // the chair just south of it is the intended (and required) step up.
+      { x: 503, y: 0.9, z: -3, w: 1.6, h: 1.8, d: 1.0, color: 0x8a6d3b },
+      { x: 503, y: 0.3, z: -1.7, w: 0.55, h: 0.6, d: 0.55, color: 0x9c7a52 }, // chair (climb this first)
+      { x: 503, y: 0.3, z: -4.3, w: 0.55, h: 0.6, d: 0.55, color: 0x9c7a52 }, // second chair, decorative
+
+      // Kitchen island, between the table and the south exit — cover to
+      // juke around while Granny's chasing (she avoids it too, see the
+      // `obstacles` list on the `granny` config below).
+      { x: 500, y: 0.4, z: 2, w: 2.4, h: 0.8, d: 1.2, color: 0xb08a5c },
 
       // Stepping stones leading up to the water crossing.
       { x: 0, y: 0.5, z: 8, w: 3, h: 1, d: 3 },
@@ -184,11 +205,12 @@
       // closer than that gets eaten the instant you walk in.
       { type: 'milk', x: 296, y: 0.4, z: -2 },
       { type: 'tuna', x: 304, y: 0.4, z: -2 },
-      // The stolen fish, sitting on the kitchen counter next to Granny —
-      // see `granny` below. Picking it up doesn't grant tuna/milk directly;
-      // it sets player.hasStolenFish, resolved by escaping through a door
-      // (checkDoors) or getting caught (checkGranny), both in main.js.
-      { type: 'fish', x: 500.5, y: 0.35, z: -5.3 },
+      // The stolen fish, sitting on the table (see the table+chair platforms
+      // above — reachable only by climbing the chair first). Picking it up
+      // doesn't grant tuna/milk directly; it sets player.hasStolenFish,
+      // resolved by escaping through a door (checkDoors) or getting caught
+      // by Granny (checkGranny), both in main.js.
+      { type: 'fish', x: 503, y: 2.1, z: -3 },
     ],
 
     // Bidirectional teleports. `to` is where the player lands; walking
@@ -197,25 +219,30 @@
     // (in the west room) is found.
     doors: [
       { // Key-house front door, flush against its front wall (z=88).
-        x: -13, y: 0, z: 87.85, ry: 0, radius: 1.1, locked: true,
+        x: -13, y: 0, z: 88, ry: 0, radius: 1.1, locked: true,
         to: { x: 300, y: 1, z: -3 },
       },
-      { x: 300, y: 0, z: 4, ry: Math.PI, to: { x: -13, y: 1, z: 87.0 } },
+      // Return door flush against the south wall's INNER face (5.7, not
+      // its center at 6 — the wall is 0.6 thick and the door panel only
+      // 0.15, so centering it on the wall buried it completely inside the
+      // solid wall mesh, invisible from inside the room).
+      { x: 300, y: 0, z: 5.7, ry: Math.PI, to: { x: -13, y: 1, z: 87.0 } },
 
-      // Couch-shed door — no key needed, meant to be an easy early find.
-      { x: 7, y: 0, z: 13.35, ry: 0, radius: 1.0, to: { x: 400, y: 1, z: 0 } },
-      { x: 400, y: 0, z: 4, ry: Math.PI, to: { x: 7, y: 1, z: 12.8 } },
+      // Couch-shed door, flush against its front wall (z=13.5) — no key
+      // needed, meant to be an easy early find.
+      { x: 7, y: 0, z: 13.5, ry: 0, radius: 1.0, to: { x: 400, y: 1, z: 0 } },
+      { x: 400, y: 0, z: 5.7, ry: Math.PI, to: { x: 7, y: 1, z: 12.65 } }, // inner face of south wall (z=6)
 
-      // Kitchen-house door — also unlocked (this mini-game's "lock" is
-      // Granny, not a key).
-      { x: 13, y: 0, z: 87.85, ry: 0, radius: 1.1, to: { x: 500, y: 1, z: -2 } },
-      { x: 500, y: 0, z: 4, ry: Math.PI, to: { x: 13, y: 1, z: 87.0 } },
+      // Kitchen-house door, flush against its front wall (z=13) — also
+      // unlocked (this mini-game's "lock" is Granny, not a key).
+      { x: -6, y: 0, z: 13, ry: 0, radius: 1.1, to: { x: 500, y: 1, z: 6 } },
+      { x: 500, y: 0, z: 7.7, ry: Math.PI, to: { x: -6, y: 1, z: 12.65 } }, // inner face of south wall (z=8)
     ],
 
     // Couch mini-game: attack it (Space) enough times and it breaks open.
     destructibles: [
       {
-        x: 400, y: 0, z: -2, hp: 6, radius: 1.1,
+        x: 400, y: 0, z: -2, ry: Math.PI, hp: 6, radius: 1.1,
         rewards: [
           { type: 'tuna', dx: -0.9, dz: 0.4 },
           { type: 'tuna', dx: 0.9, dz: 0.4 },
@@ -224,12 +251,22 @@
       },
     ],
 
-    // Kitchen heist mini-game: grab the fish (in `collectibles` above) and
-    // get out a door before her suspicion (checkGranny() in main.js) maxes
-    // out. exitTo is where getting caught dumps the player.
+    // Kitchen heist mini-game: Granny wanders this patrol route (near the
+    // stove/counter, clear of the table) until the fish is stolen, then
+    // chases the player directly (checkGranny() in main.js). exitTo is
+    // where getting caught dumps the player.
     granny: {
-      x: 500, y: 0, z: -5, ry: 0, noticeRadius: 2.6,
-      exitTo: { x: 13, y: 1, z: 87.0 },
+      x: 496, y: 0, z: -6,
+      patrolA: { x: 496, z: -6 }, patrolB: { x: 496, z: 3 },
+      ry: 0,
+      // obstacles: furniture she (and the player, via normal platform
+      // collision) can't cut straight through — gives dodging around them
+      // during the chase an actual purpose.
+      obstacles: [
+        { x: 503, z: -3, radius: 1.0 }, // the table
+        { x: 500, z: 2, radius: 1.5 },  // the kitchen island
+      ],
+      exitTo: { x: -6, y: 1, z: 12.65 },
     },
 
     enemies: [
@@ -292,7 +329,7 @@
       { x: 0, z: 61, radius: 5, text: 'El Gato Grande espera adelante. Cuando abra la boca y gruna, va a largar gases: esquivalos y aprovecha para aranarlo de cerca.' },
       { x: -13, z: 90, radius: 6, text: 'Esta debe ser la puerta de la llave! Presiona F para entrar.' },
       { x: 7, z: 15, radius: 5, text: 'Un cobertizo con un sofa sospechoso. Presiona F para entrar... y despues probá arañarlo (Espacio).' },
-      { x: 13, z: 90, radius: 6, text: 'La cocina de una abuela gatera. Hay un pescado en la mesada... pero no le quites el ojo de encima a ella.' },
+      { x: -6, z: 15, radius: 6, text: 'La cocina de una abuela gatera. El pescado esta arriba de la mesa: subite a la silla primero. Si te agarra con el pescado, va a salir corriendo detras tuyo con la escoba!' },
     ],
 
     goal: { collectiblesRequired: 10 },

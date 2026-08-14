@@ -46,6 +46,30 @@ const SFX = (function () {
     src.start(t0);
   }
 
+  // A run of short pitch-wobbling "syllables" — pseudo-words with no real
+  // phonemes, just a cadence of tones that reads as mumbled speech. Used
+  // for Granny's voice instead of a scream/roar.
+  function gibberish({ syllables = 4, baseFreq = 340, freqVariance = 90, gain = 0.11, speed = 0.15, type = 'sawtooth' }) {
+    const ac = ensureCtx();
+    let t = ac.currentTime + 0.02;
+    for (let i = 0; i < syllables; i++) {
+      const f = baseFreq + (Math.random() * 2 - 1) * freqVariance;
+      const dur = speed * (0.7 + Math.random() * 0.6);
+      const osc = ac.createOscillator();
+      const g = ac.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(f, t);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(f * (0.75 + Math.random() * 0.5), 60), t + dur);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(gain, t + dur * 0.2);
+      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      osc.connect(g).connect(ac.destination);
+      osc.start(t);
+      osc.stop(t + dur + 0.02);
+      t += dur + speed * 0.3 * Math.random();
+    }
+  }
+
   return {
     unlock() { ensureCtx(); },
     // Exposed so other modules (Music) can share this same AudioContext
@@ -82,5 +106,35 @@ const SFX = (function () {
       noiseBurst({ duration: 0.55, gain: 0.26, filterFreq: 2200 });
       noiseBurst({ duration: 0.3, gain: 0.14, filterFreq: 600 });
     },
+    // Granny's idle chatter while she patrols — calm gibberish "words" in
+    // an old-lady register, nothing intelligible, just cadence and pitch.
+    playGrannyMutter() {
+      gibberish({ syllables: 3 + Math.floor(Math.random() * 2), baseFreq: 320, freqVariance: 70, gain: 0.08, speed: 0.17, type: 'triangle' });
+    },
+    // The instant she notices the fish is gone: same gibberish "voice" but
+    // faster, louder, and harsher — reads as angry shouting without being
+    // an unrelated cat-style scream.
+    playGrannyAngryShout() {
+      gibberish({ syllables: 6, baseFreq: 420, freqVariance: 140, gain: 0.19, speed: 0.1, type: 'sawtooth' });
+      noiseBurst({ duration: 0.3, gain: 0.14, filterFreq: 2800 });
+    },
   };
+})();
+
+// Browsers only actually let an AudioContext run if resume() happens to be
+// called from inside a genuine user-gesture handler. The story intro can
+// auto-open (and call Music.play()) before the player has interacted with
+// the page at all, so that first Music.play() silently stays suspended —
+// this listens for the very first click/key/touch anywhere on the page and
+// unlocks right there, then kicks Music's loop immediately (rather than
+// waiting for its own next scheduled note, up to several seconds later) so
+// sound starts right at that first interaction instead of being delayed.
+(function () {
+  const events = ['pointerdown', 'keydown', 'touchstart'];
+  const handler = () => {
+    SFX.unlock();
+    if (typeof Music !== 'undefined') Music.kick();
+    events.forEach((e) => document.removeEventListener(e, handler));
+  };
+  events.forEach((e) => document.addEventListener(e, handler));
 })();

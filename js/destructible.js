@@ -60,6 +60,22 @@ class Destructible {
     if (this.dead) return;
     this.hitFlash = Math.max(0, this.hitFlash - dt);
 
+    // It's a static prop, not a platform in world.platforms, so nothing
+    // else stops the player from walking straight through it. Push only the
+    // player out (not separateCircles' usual both-ways split) — it's a
+    // couch, not another character, it shouldn't visibly shove aside.
+    const dx = player.position.x - this.position.x, dz = player.position.z - this.position.z;
+    const minDist = this.radius + player.radius;
+    const distSq = dx * dx + dz * dz;
+    if (distSq < minDist * minDist) {
+      const dist = Math.sqrt(distSq);
+      const nx = dist > 0.0001 ? dx / dist : 1; // dead-center edge case: push an arbitrary direction
+      const nz = dist > 0.0001 ? dz / dist : 0;
+      const overlap = minDist - dist;
+      player.position.x += nx * overlap;
+      player.position.z += nz * overlap;
+    }
+
     if (player.attackId !== this.lastHitAttackId && player.attackHits(this.position, this.radius)) {
       this.lastHitAttackId = player.attackId;
       this.takeHit(1, world);
