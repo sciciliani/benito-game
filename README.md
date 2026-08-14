@@ -4,6 +4,10 @@ A browser-based 3D cat adventure game built with [Three.js](https://threejs.org/
 
 ![Benito and Didi](assets/story/panel1.jpg)
 
+## TRY IT!
+
+[https://sciciliani.github.io/benito-game/](https://sciciliani.github.io/benito-game/)
+
 ## Story
 
 Benito is a chubby, food-obsessed white cat with a big heart. One night, a stray dog kidnaps his girlfriend Didi. Benito sets off across the garden — climbing walls, crossing a stream, fighting off rival cats, sneaking into houses, and eventually facing down the Gato Grande — to get her back.
