@@ -2,6 +2,26 @@
 // shared Silverpaw rig other cats use.
 const FAT_SCALE = { x: 1.7, y: 1.3, z: 1.6 };
 
+// Converts input-space movement (ix = strafe, iz = forward/back, both in
+// [-1,1]) into world-space x/z relative to the camera's current yaw, so
+// "forward" always means "away from the camera" and "right" always means
+// the camera's actual right vector — regardless of how the camera's been
+// rotated. Pulled out as a pure function (see tests/movement.test.js)
+// after a sign-flip bug here (fixed to only match the *default* camera
+// angle) made movement invert whenever the camera was turned.
+function cameraRelativeMove(ix, iz, cameraYaw) {
+  const cos = Math.cos(cameraYaw), sin = Math.sin(cameraYaw);
+  return { x: ix * cos + iz * sin, z: -ix * sin + iz * cos };
+}
+
+// Tuna grows Benito's heart cap every 3 collected, handed over already
+// full rather than just raising an empty ceiling. Pulled out as a pure
+// function so the milestone math (and the "handed over full" part) has a
+// direct test (tests/economy.test.js) independent of Player's other state.
+function heartCapForTuna(tunaCount, baseMax = 5) {
+  return baseMax + Math.floor(tunaCount / 3);
+}
+
 // Benito, the player character. Owns movement/physics, climbing, jumping,
 // the claw attack, health, and respawn-on-drowning logic. Camera control
 // lives in main.js so it can also see the Three.js camera object.
@@ -25,6 +45,15 @@ class Player {
       this.mesh = buildCatMesh({ furColor: 0xffffff, earColor: 0xffb6c1, pawColor: 0xffe1ea, eyeColor: 0x6fae4a });
       this.usingSilverpaw = false;
     }
+    // Default Euler order ('XYZ') composes pitch (rotation.x, used for the
+    // climb pose below) *inside* yaw (rotation.y, set to this.facing every
+    // frame) — so tipping the model to face "up" only actually pointed up
+    // when facing was near 0; at other facing angles the coupling between
+    // the two axes could tip him past vertical into upside-down, face-to-
+    // -floor. 'YXZ' applies yaw as the outermost rotation instead, so
+    // pitching the local +Z axis to world +Y stays world +Y regardless of
+    // whatever yaw is applied on top. See tests/climb-rotation.test.js.
+    this.mesh.rotation.order = 'YXZ';
     // Matches the fattened mesh scale above so the collision boundary
     // actually contains the visible body instead of the old (pre-fattening)
     // silhouette — otherwise the model pokes into whatever he's pressed
@@ -52,7 +81,6 @@ class Player {
     this.attackActiveTimer = 0;
     this.attackId = 0;
     this.attackRange = 1.35;
-    this.attackArc = Math.PI / 2.2; // total cone width
 
     this.lastSafe = this.position.clone();
     this.safeTimer = 0;
@@ -60,8 +88,11 @@ class Player {
     this.speed = 6.5;
     this.runSpeed = 10.5;
     this.jumpVelocity = 8.6;
+    this.airJumpVelocity = 7.4; // slightly weaker than the ground jump
     this.gravity = -22;
     this.climbSpeed = 3.2;
+    this.maxJumps = 2; // ground jump + one mid-air double jump
+    this.jumpsUsed = 0;
 
     this.milk = 0;
     this.tuna = 0;
@@ -121,7 +152,7 @@ class Player {
   // already full, not just a bigger empty ceiling).
   addTuna() {
     this.tuna++;
-    const newMax = 5 + Math.floor(this.tuna / 3);
+    const newMax = heartCapForTuna(this.tuna);
     if (newMax > this.maxHearts) {
       this.maxHearts = newMax;
       this.hearts++;
@@ -169,7 +200,10 @@ class Player {
 
   // Returns true if this swing (identified by attackId) hits a target at
   // targetPos within targetRadius. Callers should pass the same attackId
-  // once per target per swing to avoid double-hits.
+  // once per target per swing to avoid double-hits. Omnidirectional by
+  // design — no facing/angle check — since aiming a cone precisely at a
+  // moving target with a fixed camera proved too fiddly; being close
+  // enough is what matters.
   attackHits(targetPos, targetRadius) {
     if (!this.isAttacking) return false;
     const toTarget = targetPos.clone().sub(this.position);
@@ -177,13 +211,7 @@ class Player {
     // range even if its x/z happens to line up with Benito's.
     if (Math.abs(toTarget.y) > MELEE_VERTICAL_REACH) return false;
     toTarget.y = 0;
-    const dist = toTarget.length();
-    if (dist > this.attackRange + targetRadius) return false;
-    if (dist < 0.001) return true;
-    toTarget.normalize();
-    const facingVec = new THREE.Vector3(Math.sin(this.facing), 0, Math.cos(this.facing));
-    const angle = facingVec.angleTo(toTarget);
-    return angle < this.attackArc / 2;
+    return toTarget.length() <= this.attackRange + targetRadius;
   }
 
   // progress in [0,1] drives the swing (paw punches out then returns, mouth
@@ -228,8 +256,8 @@ class Player {
       body.material.color.set(0xffffff);
     }
 
-    if (Input.pressed('Space')) this.tryAttack();
-    if (Input.pressed('KeyS')) this.trySuper(world);
+    if (Input.pressed('KeyZ')) this.tryAttack();
+    if (Input.pressed('KeyX')) this.trySuper(world);
 
     // Movement input relative to camera yaw.
     let ix = 0, iz = 0;
@@ -244,14 +272,7 @@ class Player {
     if (moving) {
       const len = Math.hypot(ix, iz);
       ix /= len; iz /= len;
-      const cos = Math.cos(cameraYaw), sin = Math.sin(cameraYaw);
-      // Forward (iz=-1) should move away from camera along its facing dir,
-      // and right (ix=1) along the camera's actual right vector (cos(yaw),
-      // 0, -sin(yaw)) — the previous signs here matched only at the default
-      // cameraYaw = PI (where sin(yaw) is 0), so turning the camera away
-      // from that made left/right (and forward/back) come out backwards.
-      moveX = ix * cos + iz * sin;
-      moveZ = -ix * sin + iz * cos;
+      ({ x: moveX, z: moveZ } = cameraRelativeMove(ix, iz, cameraYaw));
       this.facing = Math.atan2(moveX, moveZ);
     }
 
@@ -293,7 +314,10 @@ class Player {
       this.velocity.x = THREE.MathUtils.lerp(this.velocity.x, targetVX, moving ? 0.35 : 0.2);
       this.velocity.z = THREE.MathUtils.lerp(this.velocity.z, targetVZ, moving ? 0.35 : 0.2);
 
-      if (this.grounded && (Input.pressed('ControlLeft') || Input.pressed('ControlRight'))) this._jump();
+      // Not Ctrl: Ctrl+Arrow triggers browser/OS shortcuts (e.g. word-by-word
+      // text navigation) in some browsers, which fought with using arrows
+      // to move at the same time.
+      if (Input.pressed('Space') && this.jumpsUsed < this.maxJumps) this._jump();
     }
 
     // Integrate + collide.
@@ -304,6 +328,7 @@ class Player {
     this.position.y += this.velocity.y * dt;
     this.grounded = false;
     this._resolveVerticalCollision(world);
+    if (this.grounded) this.jumpsUsed = 0;
 
     // Drowning check: below water level with nothing solid underfoot.
     if (!this.grounded && this.position.y < 0.15 && this._inWaterZone(world)) {
@@ -352,7 +377,11 @@ class Player {
   }
 
   _jump() {
-    this.velocity.y = this.jumpVelocity;
+    // The second (mid-air) jump is a bit weaker than the ground jump —
+    // still a real boost, but not identical, so it reads as a distinct
+    // "double jump" beat rather than just two equal hops.
+    this.velocity.y = this.jumpsUsed === 0 ? this.jumpVelocity : this.airJumpVelocity;
+    this.jumpsUsed++;
     this.grounded = false;
     SFX.playJump();
   }
@@ -550,4 +579,11 @@ function buildSuperEffect() {
       }
     },
   };
+}
+
+// Node-only: lets tests/ `require()` the pure functions above without a
+// bundler. `module` doesn't exist in the browser's plain <script> load, so
+// this block never runs there — zero effect on the actual game.
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { cameraRelativeMove, heartCapForTuna, FAT_SCALE };
 }

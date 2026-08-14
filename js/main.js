@@ -97,10 +97,16 @@
     const rotSpeed = 2.0, pitchSpeed = 1.0;
     if (Input.down('KeyA')) cameraYaw += rotSpeed * dt;
     if (Input.down('KeyD')) cameraYaw -= rotSpeed * dt;
-    // Pitch was W/S, but S now triggers the super attack — moved down-pitch
-    // to Q so holding S to look down doesn't also fire the super power.
     if (Input.down('KeyW')) cameraPitch += pitchSpeed * dt;
-    if (Input.down('KeyQ')) cameraPitch -= pitchSpeed * dt;
+    if (Input.down('KeyS')) cameraPitch -= pitchSpeed * dt;
+    // Mobile finger-swipe look (see js/mobile.js) — accumulated drag,
+    // consumed and reset here each frame. Always 0 on desktop.
+    if (Input.lookDeltaX || Input.lookDeltaY) {
+      cameraYaw -= Input.lookDeltaX;
+      cameraPitch -= Input.lookDeltaY;
+      Input.lookDeltaX = 0;
+      Input.lookDeltaY = 0;
+    }
     cameraPitch = THREE.MathUtils.clamp(cameraPitch, PITCH_MIN, PITCH_MAX);
 
     const target = player.position.clone();
@@ -174,19 +180,39 @@
   let doorCooldown = 0;
   function checkDoors(dt) {
     doorCooldown = Math.max(0, doorCooldown - dt);
+
+    // Locked-door reminder: shown once per approach (not spammed every
+    // frame while standing there), independent of pressing F, and only
+    // while the player doesn't have the key yet — makes clear why nothing
+    // happens instead of leaving it to a message that only fires on a
+    // failed F-press.
+    for (const door of world.doors) {
+      if (!door.locked || player.hasKey) { door._hintShown = false; continue; }
+      const dx = player.position.x - door.x, dz = player.position.z - door.z;
+      const nearHint = dx * dx + dz * dz < (door.radius + 1.5) * (door.radius + 1.5);
+      if (nearHint && !door._hintShown) {
+        door._hintShown = true;
+        showMessage('Necesito una llave.', 2.5);
+      } else if (!nearHint) {
+        door._hintShown = false;
+      }
+    }
+
     if (doorCooldown > 0) return;
     for (const door of world.doors) {
       const dx = player.position.x - door.x, dz = player.position.z - door.z;
-      if (dx * dx + dz * dz < door.radius * door.radius && Input.pressed('KeyF')) {
-        if (door.locked && !player.hasKey) {
-          showMessage('Esta puerta esta cerrada con llave.', 2);
-          return;
-        }
+      const inRange = dx * dx + dz * dz < door.radius * door.radius;
+      // `auto` doors (the return trip out of a house) trigger on proximity
+      // alone — only entrances (from outside in) need a deliberate F, so
+      // walking into a room doesn't accidentally teleport you back out.
+      if (inRange && (door.auto || Input.pressed('KeyF'))) {
+        if (door.locked && !player.hasKey) continue; // the reminder above already covers this
         player.position.set(door.to.x, door.to.y, door.to.z);
         player.velocity.set(0, 0, 0);
         player.lastSafe.copy(player.position);
         doorCooldown = 0.6; // don't immediately re-trigger a door at the destination
         SFX.playPickup();
+        if (door.enterMessage) showMessage(door.enterMessage, 3.5);
         if (player.hasStolenFish) {
           player.hasStolenFish = false;
           player.addTuna(); player.addTuna();
@@ -216,38 +242,59 @@
       world.granny.calm(); // he escaped through a door or already got caught
     }
 
-    // catchImmuneTimer: a short grace period right after enrage() so being
-    // already close to her when you grab the fish doesn't feel like an
-    // instant, unavoidable hit.
+    // catchImmuneTimer: a short grace period right after enrage() (and after
+    // every graze, see below) so being already close to her when you grab
+    // the fish — or getting swatted once — doesn't chain into more hits
+    // before you can even react.
     if (world.granny.angry && world.granny.catchImmuneTimer <= 0) {
       const dx = player.position.x - world.granny.position.x, dz = player.position.z - world.granny.position.z;
       const closeOnY = Math.abs(player.position.y - world.granny.position.y) < MELEE_VERTICAL_REACH;
       if (dx * dx + dz * dz < world.granny.catchRadius * world.granny.catchRadius && closeOnY) {
-        player.hasStolenFish = false;
-        world.granny.calm();
-        player.takeDamage(1, world.granny.position);
-        const fish = world.collectibles.find((c) => c.type === 'fish');
-        if (fish) { fish.collected = false; fish.mesh.visible = true; } // back on the table for next time
-        if (world.granny.exitTo) player.position.set(world.granny.exitTo.x, world.granny.exitTo.y, world.granny.exitTo.z);
-        player.velocity.set(0, 0, 0);
-        doorCooldown = 0.6;
-        showMessage('Te atrapo y te golpeo con la escoba! Perdiste el pescado.', 3.5);
+        world.granny.catchHits++;
+        world.granny.catchImmuneTimer = 1.0;
+        if (world.granny.catchHits >= world.granny.catchHitsToEject) {
+          // The real catch: loses the fish, costs a heart, gets swept
+          // outside — only once she's landed several hits, not one.
+          player.hasStolenFish = false;
+          world.granny.calm();
+          player.takeDamage(1, world.granny.position);
+          const fish = world.collectibles.find((c) => c.type === 'fish');
+          if (fish) { fish.collected = false; fish.mesh.visible = true; } // back on the table for next time
+          if (world.granny.exitTo) player.position.set(world.granny.exitTo.x, world.granny.exitTo.y, world.granny.exitTo.z);
+          player.velocity.set(0, 0, 0);
+          doorCooldown = 0.6;
+          showMessage('Te atrapo y te golpeo con la escoba! Perdiste el pescado.', 3.5);
+        } else {
+          // A graze: knockback only, no heart lost — keeps the chase (and
+          // the tension) going instead of ending the whole attempt.
+          const push = new THREE.Vector3(dx, 0, dz);
+          if (push.lengthSq() < 0.0001) push.set(0, 0, 1);
+          push.normalize().multiplyScalar(5);
+          player.velocity.x = push.x;
+          player.velocity.z = push.z;
+          player.velocity.y = 4;
+          player.grounded = false;
+          SFX.playHiss();
+          showMessage(`Te rozo con la escoba! (${world.granny.catchHits}/${world.granny.catchHitsToEject})`, 1.8);
+        }
       }
     }
   }
 
   function checkGate() {
-    if (!world.gatePlatform || world.gateOpened) return;
-    const required = world.goal?.collectiblesRequired ?? 0;
-    if (player.milk + player.tuna < required) return;
-    world.gateOpened = true;
-    const idx = world.platforms.indexOf(world.gatePlatform);
-    if (idx !== -1) world.platforms.splice(idx, 1);
-    const blockerIdx = world.cameraBlockers.indexOf(world.gatePlatform.mesh);
-    if (blockerIdx !== -1) world.cameraBlockers.splice(blockerIdx, 1);
-    world.group.remove(world.gatePlatform.mesh);
-    SFX.playPickup();
-    showMessage('El porton se abrio! El camino hacia el Gato Grande esta libre.', 4);
+    for (const gate of world.gates) {
+      if (gate.opened) continue;
+      const required = gate.required ?? (world.goal?.collectiblesRequired ?? 0);
+      if (player.milk + player.tuna < required) continue;
+      gate.opened = true;
+      const idx = world.platforms.indexOf(gate.platform);
+      if (idx !== -1) world.platforms.splice(idx, 1);
+      const blockerIdx = world.cameraBlockers.indexOf(gate.platform.mesh);
+      if (blockerIdx !== -1) world.cameraBlockers.splice(blockerIdx, 1);
+      world.group.remove(gate.platform.mesh);
+      SFX.playPickup();
+      showMessage(gate.openMessage ?? 'El porton se abrio!', 4);
+    }
   }
 
   function checkEndConditions(dt) {

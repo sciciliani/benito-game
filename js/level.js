@@ -69,8 +69,11 @@ class LevelBuilder {
       hints: (config.hints || []).map((h) => ({ ...h, shown: false })),
       group: new THREE.Group(),
       goal: config.goal ?? { collectiblesRequired: 0 },
-      gatePlatform: null,
-      gateOpened: false,
+      // One or more gated barriers (see checkGate() in main.js). Each gate
+      // can set its own `gateRequires` threshold (e.g. a smaller one for an
+      // early gate whose reachable collectibles are limited); if omitted it
+      // falls back to goal.collectiblesRequired.
+      gates: [],
     };
 
     const skyTop = config.skyColor ?? 0x2f7fd6;
@@ -138,10 +141,21 @@ class LevelBuilder {
         mesh = new THREE.Group();
         const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), houseMats.wall);
         mesh.add(body);
-        const roof = new THREE.Mesh(new THREE.ConeGeometry(w * 0.75, h * 0.6, 4), houseMats.roof);
-        roof.rotation.y = Math.PI / 4;
-        roof.position.y = h / 2 + (h * 0.6) / 2;
-        mesh.add(roof);
+        if (p.flatRoof) {
+          // Climbable houses get a flat parapet ledge instead of a cone —
+          // it needs to actually read as a place you can stand and fight,
+          // not just a decorative peak. Collision-wise the box body above
+          // is already the flat top the player lands on; this is a thin
+          // purely-visual trim around its edge.
+          const trim = new THREE.Mesh(new THREE.BoxGeometry(w * 1.04, h * 0.06, d * 1.04), houseMats.roof);
+          trim.position.y = h / 2 + (h * 0.06) / 2;
+          mesh.add(trim);
+        } else {
+          const roof = new THREE.Mesh(new THREE.ConeGeometry(w * 0.75, h * 0.6, 4), houseMats.roof);
+          roof.rotation.y = Math.PI / 4;
+          roof.position.y = h / 2 + (h * 0.6) / 2;
+          mesh.add(roof);
+        }
       } else if (p.bouncy) {
         // Cushion look: a squashed sphere reads as a puffy pillow far
         // better than a sharp-edged box does, plus a tufted seam ring.
@@ -160,6 +174,42 @@ class LevelBuilder {
         seam.rotation.x = Math.PI / 2;
         seam.position.y = h * 0.55;
         mesh.add(seam);
+      } else if (p.gate) {
+        // A steel door + a "forbidden" sign, so it reads as a clearly
+        // different kind of barrier from the (brown, wood-toned) climbable
+        // wall — a plain colored box was too easy to mix the two up. Gates
+        // block either a corridor cap (wide in x, thin in z, approached
+        // along z) or a gap in a column wall (wide in z, thin in x,
+        // approached along x) — whichever of w/d is smaller is the
+        // thin/approach-facing axis, and the ribs + sign orient to match.
+        mesh = new THREE.Group();
+        const wide = Math.max(w, d);
+        const wideIsX = w >= d;
+        const steelMat = new THREE.MeshLambertMaterial({ color: p.color ?? 0x848c96 });
+        mesh.add(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), steelMat));
+        const ribMat = new THREE.MeshLambertMaterial({ color: 0x5c6570 });
+        for (const frac of [-0.28, 0, 0.28]) {
+          const ribW = wideIsX ? wide * 0.94 : w * 1.08;
+          const ribD = wideIsX ? d * 1.08 : wide * 0.94;
+          const rib = new THREE.Mesh(new THREE.BoxGeometry(ribW, h * 0.05, ribD), ribMat);
+          rib.position.y = h * frac;
+          mesh.add(rib);
+        }
+        const signMat = new THREE.MeshBasicMaterial({ color: 0xf2f2f2, side: THREE.DoubleSide });
+        const backing = new THREE.Mesh(new THREE.CircleGeometry(0.8, 24), signMat);
+        const redMat = new THREE.MeshBasicMaterial({ color: 0xdb2020, side: THREE.DoubleSide });
+        const ring = new THREE.Mesh(new THREE.RingGeometry(0.56, 0.78, 24), redMat);
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.2, 0.02), redMat);
+        bar.rotation.z = Math.PI / 4;
+        const sign = new THREE.Group();
+        sign.add(backing, ring, bar);
+        if (wideIsX) {
+          sign.position.set(0, 0, d / 2 + 0.03);
+        } else {
+          sign.rotation.y = Math.PI / 2;
+          sign.position.set(w / 2 + 0.03, 0, 0);
+        }
+        mesh.add(sign);
       } else {
         let color = p.color ?? 0x8a6d3b;
         if (p.climbable) color = 0x9c7a4a;
@@ -179,9 +229,15 @@ class LevelBuilder {
       };
       world.platforms.push(entry);
       // A gate: a solid wall that blocks the path until the player has
-      // collected world.goal.collectiblesRequired items, then despawns
-      // (see checkGate() in main.js).
-      if (p.gate) world.gatePlatform = entry;
+      // collected enough items (see checkGate() in main.js), then despawns.
+      if (p.gate) {
+        world.gates.push({
+          platform: entry,
+          required: p.gateRequires ?? null,
+          opened: false,
+          openMessage: p.gateOpenMessage ?? null,
+        });
+      }
     }
 
     // Solid meshes the follow camera should never render the far/back side
@@ -223,8 +279,9 @@ class LevelBuilder {
 
     // Doors: bidirectional teleports (house entrances, etc). No solid
     // collision of their own — main.js's checkDoors() triggers on proximity
-    // + a keypress. Just a visible panel + knob so the player can see where
-    // one is; `locked` ones need player.hasKey (checked in main.js).
+    // (+ a keypress, unless `auto`). Just a visible panel + knob so the
+    // player can see where one is; `locked` ones need player.hasKey
+    // (checked in main.js), and get a big padlock so that's obvious too.
     world.doors = (config.doors ?? []).map((d) => {
       const doorGroup = new THREE.Group();
       const panel = new THREE.Mesh(
@@ -232,16 +289,36 @@ class LevelBuilder {
         new THREE.MeshLambertMaterial({ color: d.color ?? (d.locked ? 0x5b4636 : 0x4a2f1c) })
       );
       doorGroup.add(panel);
-      const knob = new THREE.Mesh(
-        new THREE.SphereGeometry(0.07, 8, 6),
-        new THREE.MeshLambertMaterial({ color: 0xdcb84a })
-      );
-      knob.position.set(0.45, -0.1, 0.13);
-      doorGroup.add(knob);
+      // Knob + (if locked) padlock are built twice, mirrored on both faces
+      // of the panel — a single one-sided copy meant the door read as bare
+      // wood from whichever side didn't happen to face it.
+      const knobMat = new THREE.MeshLambertMaterial({ color: 0xdcb84a });
+      for (const side of [1, -1]) {
+        const knob = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), knobMat);
+        knob.position.set(0.45, -0.1, side * 0.13);
+        doorGroup.add(knob);
+      }
+      if (d.locked) {
+        const lockBodyMat = new THREE.MeshLambertMaterial({ color: 0x2a2a2e });
+        const shackleMat = new THREE.MeshLambertMaterial({ color: 0xb0b0b8 });
+        for (const side of [1, -1]) {
+          const lockGroup = new THREE.Group();
+          const body = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.3, 0.12), lockBodyMat);
+          lockGroup.add(body);
+          const shackle = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.035, 8, 12, Math.PI), shackleMat);
+          shackle.position.y = 0.15;
+          lockGroup.add(shackle);
+          lockGroup.position.set(0, 0.15, side * 0.14);
+          doorGroup.add(lockGroup);
+        }
+      }
       doorGroup.position.set(d.x, d.y + 1, d.z);
       if (d.ry) doorGroup.rotation.y = d.ry;
       world.group.add(doorGroup);
-      return { x: d.x, y: d.y, z: d.z, radius: d.radius ?? 1.2, to: d.to, locked: !!d.locked };
+      return {
+        x: d.x, y: d.y, z: d.z, radius: d.radius ?? 1.2, to: d.to,
+        locked: !!d.locked, auto: !!d.auto, enterMessage: d.enterMessage,
+      };
     });
 
     this.scene.add(world.group);
@@ -251,4 +328,11 @@ class LevelBuilder {
   dispose(world) {
     this.scene.remove(world.group);
   }
+}
+
+// Node-only: lets tests/ `require()` the pure helpers above without a
+// bundler or a DOM/Three.js scene. Never runs in the browser (see the same
+// pattern/explanation in player.js).
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { findGroundY, separateCircles, MELEE_VERTICAL_REACH, AGGRO_VERTICAL_REACH };
 }

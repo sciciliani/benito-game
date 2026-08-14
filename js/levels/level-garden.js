@@ -1,15 +1,15 @@
 // Default level. Builds on LEVEL_DEMO's straight corridor (see that file for
 // the fully-documented schema) by widening the middle stretch into an open
-// plaza with two side branches — a hidden west room and an east lookout
-// tower reached by climbing — plus a gate before the boss wing that stays
-// shut until the player has collected enough milk/tuna, so at least one
-// branch actually has to be visited instead of walking straight through.
+// plaza with a hidden west room, plus a single gated entrance out in the
+// open field before the plaza that stays shut until the player has
+// collected enough milk/tuna, so exploring the field is required before
+// going any further. The couch and granny houses out there are themselves
+// climbable, with a rooftop enemy to fight on each.
 //
 // Layout along z (the main direction of travel):
 //   -4..6   spawn funnel, corridor width  9 (x: -9..9)
-//    6..17  open plaza,   width 18 (x: -18..18) — west room + east tower
+//    6..17  open plaza,   width 18 (x: -18..18) — west room
 //   17..38  water crossing, corridor width 9 (unchanged from LEVEL_DEMO)
-//   38..41  gate (blocks path until goal.collectiblesRequired is met)
 //   41..57  climbable wall + stair descent (unchanged from LEVEL_DEMO)
 //   57..98  enemy gauntlet + boss arena (widens back to 18, unchanged shape)
 
@@ -35,7 +35,12 @@
     ...hedgeRow(-9, 9, -4, 4.5),        // cap behind spawn
     ...hedgeCol(-9, -4, 6, 5),          // spawn funnel, west/east
     ...hedgeCol(9, -4, 6, 5),
-    ...hedgeCol(-18, 6, 17, 5.5),       // plaza outer wall, west/east
+    // Plaza outer wall. West side has a narrow gap (z10.2-12.8, exactly the
+    // width of the iron gate below) — the only way in from the open field
+    // where Benito now starts (see spawn below). The hedge fully encloses
+    // everything before the river; that gate is the sole entrance.
+    ...hedgeCol(-18, 6, 10.2, 3),
+    ...hedgeCol(-18, 12.8, 17, 3),
     ...hedgeCol(18, 6, 17, 5.5),
     ...hedgeRow(-18, -9, 6, 4.5),       // west room north wall
     ...hedgeRow(-18, -9, 14, 4.5),      // west room south wall (west wall is shared with the plaza outer wall above)
@@ -50,31 +55,73 @@
 
   // Purely decorative — placed just outside the outer hedge walls (|x| > 18)
   // so they're visible in the distance but never inside reachable space
-  // (matches how platforms/enemies have no collision against them).
+  // (matches how platforms/enemies have no collision against them). The
+  // other two (that used to be here at x=-24) are now the real couch/
+  // granny houses, in the reachable field west of the plaza — see below.
   const houses = [
-    { x: -24, y: 1.4, z: 24, w: 5, h: 2.8, d: 5, house: true },
     { x: 24, y: 1.4, z: 36, w: 5, h: 2.8, d: 5, house: true },
-    { x: -24, y: 1.4, z: 70, w: 5, h: 2.8, d: 5, house: true },
     { x: 24, y: 1.4, z: 85, w: 5, h: 2.8, d: 5, house: true },
   ];
 
   const LEVEL_GARDEN = {
     id: 'garden-1',
     name: 'Jardin de Benito',
-    spawn: { x: 0, y: 1, z: 0 },
+    // Spawns outside the walled plaza entirely, in the open field to the
+    // west — the couch house is close by (with a rival cat guarding it),
+    // the granny house and the lookout tower a bit further out, and the
+    // main path (rival cats, the swamp crossing, the boss) is found by
+    // heading east through the gap in the plaza wall.
+    spawn: { x: -22, y: 1, z: 10 },
     skyColor: 0x2f7fd6,
     skyHorizon: 0xbfe9ff,
     groundColor: 0x5ea63c,
     groundSize: 260,
 
     platforms: [
-      // East lookout tower: a climbable wall with a small rooftop on top,
-      // freestanding in the plaza — an optional vertical detour, not a
-      // shortcut past the water crossing.
-      { x: 14, y: 3, z: 10, w: 5, h: 6, d: 1.2, climbable: true },
-      { x: 14, y: 6.2, z: 10, w: 4, h: 0.4, d: 5 },
+      // The entrance gate: closes off everything before the river (the
+      // whole walled plaza, west room, and water crossing) behind the hedge
+      // — this narrow iron door (double a normal door's width, see the
+      // matching gap cut into the boundary hedge above) is the only way
+      // in. Requires 4 of the milk/tuna scattered around the open field
+      // (out of the 6 reachable there) — deliberately less than the far
+      // gate's 10, since everything past this point is unreachable until
+      // it opens. Same steel-door/forbidden-sign look as the other gate
+      // (see level.js) but sized for a gap in a column wall, not a corridor
+      // cap: width (x) is the thin dimension, depth (z) is the wide one.
+      {
+        x: -18, y: 2.5, z: 11.5, w: 1.2, h: 5, d: 2.6, gate: true,
+        gateRequires: 4, gateOpenMessage: 'El porton se abrio! El jardin esta abierto.',
+      },
 
-      // The enterable house — deep in the boss arena rather than near
+      // The couch house — the one nearest spawn, with a rival cat guarding
+      // the approach (see enemies below). Slightly bigger than before, with
+      // a flat roof (flatRoof: true — see level.js) instead of the usual
+      // decorative cone, since this one is meant to be climbed: it's a cat,
+      // and these are walls, so three of the four sides (everywhere but the
+      // front door) are climbable, all leading up to the same rooftop deck
+      // with a rival cat to fight on it.
+      { x: -27, y: 1.6, z: 6, w: 6, h: 3.2, d: 6, house: true, flatRoof: true },
+      { x: -27, y: 1.6, z: 9.4, w: 4, h: 3.2, d: 0.8, climbable: true }, // back (south) wall
+      { x: -23.6, y: 1.6, z: 6, w: 0.8, h: 3.2, d: 4, climbable: true }, // east side wall
+      { x: -30.4, y: 1.6, z: 6, w: 0.8, h: 3.2, d: 4, climbable: true }, // west side wall
+      { x: -27, y: 3.35, z: 7, w: 8, h: 0.3, d: 8 },
+      // Its own interior, same reused pattern, offset to x=400.
+      { x: 400, y: -0.5, z: 0, w: 12, h: 1, d: 12, color: 0x9c7a4a },
+      { x: 400, y: 2, z: -6, w: 12, h: 4, d: 0.6, color: 0xcbb994 },
+      { x: 406, y: 2, z: 0, w: 0.6, h: 4, d: 12, color: 0xcbb994 },
+      { x: 394, y: 2, z: 0, w: 0.6, h: 4, d: 12, color: 0xcbb994 },
+      { x: 400, y: 2, z: 6, w: 12, h: 4, d: 0.6, color: 0xcbb994 }, // south wall
+
+      // The granny/kitchen house — a bit further out than the couch house.
+      // Same treatment: bigger, flat roof, three climbable sides (all but
+      // the front door) leading to a rooftop deck with a rival cat.
+      { x: -27, y: 1.6, z: 18, w: 6, h: 3.2, d: 6, house: true, flatRoof: true },
+      { x: -27, y: 1.6, z: 21.4, w: 4, h: 3.2, d: 0.8, climbable: true }, // back (south) wall
+      { x: -23.6, y: 1.6, z: 18, w: 0.8, h: 3.2, d: 4, climbable: true }, // east side wall
+      { x: -30.4, y: 1.6, z: 18, w: 0.8, h: 3.2, d: 4, climbable: true }, // west side wall
+      { x: -27, y: 3.35, z: 19, w: 8, h: 0.3, d: 8 },
+
+      // The enterable key-house — deep in the boss arena rather than near
       // spawn, so it's a real destination and not just a pit stop. Placed
       // more than arenaRadius (16) from the boss's arena center (0,78) so
       // the boss (no wall collision) can never wander into/through it.
@@ -89,49 +136,49 @@
       { x: 294, y: 2, z: 0, w: 0.6, h: 4, d: 12, color: 0xcbb994 },
       { x: 300, y: 2, z: 6, w: 12, h: 4, d: 0.6, color: 0xcbb994 }, // south wall (the return door sits flush against it)
 
-      // A small shed in the plaza — the couch-smashing mini-game. Doesn't
-      // need a key, it's meant to be an easy early find.
-      { x: 7, y: 1.4, z: 15, w: 3, h: 2.8, d: 3, house: true },
-      // Its own interior, same reused pattern, offset to x=400.
-      { x: 400, y: -0.5, z: 0, w: 12, h: 1, d: 12, color: 0x9c7a4a },
-      { x: 400, y: 2, z: -6, w: 12, h: 4, d: 0.6, color: 0xcbb994 },
-      { x: 406, y: 2, z: 0, w: 0.6, h: 4, d: 12, color: 0xcbb994 },
-      { x: 394, y: 2, z: 0, w: 0.6, h: 4, d: 12, color: 0xcbb994 },
-      { x: 400, y: 2, z: 6, w: 12, h: 4, d: 0.6, color: 0xcbb994 }, // south wall
+      // Its own interior, offset to x=500 — a full kitchen, 28x24 (up from
+      // 18x16), with more furniture scattered around so there's actual room
+      // to run and dodge during the chase, not just one straight sprint to
+      // the door.
+      { x: 500, y: -0.5, z: 0, w: 28, h: 1, d: 24, color: 0xc9a86a }, // tile floor
+      { x: 500, y: 2, z: -12, w: 28, h: 4, d: 0.6, color: 0xcbb994 }, // north wall
+      { x: 514, y: 2, z: 0, w: 0.6, h: 4, d: 24, color: 0xcbb994 }, // east wall
+      { x: 486, y: 2, z: 0, w: 0.6, h: 4, d: 24, color: 0xcbb994 }, // west wall
+      { x: 500, y: 2, z: 12, w: 28, h: 4, d: 0.6, color: 0xcbb994 }, // south wall (return door sits flush against it)
 
-      // The kitchen-heist house — in the plaza alongside the couch shed
-      // (not deep in the boss arena) so it's found while exploring, not
-      // stumbled into mid-boss-fight.
-      { x: -6, y: 1.4, z: 15, w: 4, h: 2.8, d: 4, house: true },
-
-      // Its own interior, offset to x=500 — a proper kitchen, 18x16, much
-      // bigger than the other two interiors since Granny needs real room
-      // to wander and the player needs room to run from her.
-      { x: 500, y: -0.5, z: 0, w: 18, h: 1, d: 16, color: 0xc9a86a }, // tile floor
-      { x: 500, y: 2, z: -8, w: 18, h: 4, d: 0.6, color: 0xcbb994 }, // north wall
-      { x: 509, y: 2, z: 0, w: 0.6, h: 4, d: 16, color: 0xcbb994 }, // east wall
-      { x: 491, y: 2, z: 0, w: 0.6, h: 4, d: 16, color: 0xcbb994 }, // west wall
-      { x: 500, y: 2, z: 8, w: 18, h: 4, d: 0.6, color: 0xcbb994 }, // south wall (return door sits flush against it)
-
-      // Kitchen decor along the west wall: stove, then counter/sink.
-      { x: 494.5, y: 0.4, z: -6.5, w: 1.2, h: 0.8, d: 0.8, color: 0x4a4a4a },
-      { x: 494.5, y: 0.4, z: -3, w: 1.2, h: 0.8, d: 0.8, color: 0xd8d8d8 },
+      // Kitchen decor along the west wall: stove, counter/sink, and a tall
+      // fridge further down — also doubles as cover during the chase.
+      { x: 489, y: 0.5, z: -10.5, w: 1.6, h: 1.0, d: 1.0, color: 0x4a4a4a }, // stove
+      { x: 489, y: 0.5, z: -7.5, w: 1.6, h: 1.0, d: 1.0, color: 0xd8d8d8 }, // counter/sink
+      { x: 489, y: 1.1, z: -2, w: 1.6, h: 2.2, d: 1.3, color: 0xe8e8ec }, // fridge
+      { x: 489, y: 0.7, z: 4, w: 1.3, h: 1.4, d: 1.0, color: 0x8a5a3c }, // broom closet
       // Upper cabinets along the north wall, purely decorative.
-      { x: 495, y: 2.5, z: -7.6, w: 1.6, h: 0.8, d: 0.5, color: 0x9c7a52 },
-      { x: 500, y: 2.5, z: -7.6, w: 1.6, h: 0.8, d: 0.5, color: 0x9c7a52 },
-      { x: 505, y: 2.5, z: -7.6, w: 1.6, h: 0.8, d: 0.5, color: 0x9c7a52 },
+      { x: 491.5, y: 2.5, z: -11.6, w: 1.8, h: 0.9, d: 0.6, color: 0x9c7a52 },
+      { x: 497, y: 2.5, z: -11.6, w: 1.8, h: 0.9, d: 0.6, color: 0x9c7a52 },
+      { x: 502.5, y: 2.5, z: -11.6, w: 1.8, h: 0.9, d: 0.6, color: 0x9c7a52 },
+      { x: 508, y: 2.5, z: -11.6, w: 1.8, h: 0.9, d: 0.6, color: 0x9c7a52 },
 
       // The fish's table — deliberately taller than Benito's max jump
       // height (~1.68) so it can't be reached directly from the ground;
       // the chair just south of it is the intended (and required) step up.
-      { x: 503, y: 0.9, z: -3, w: 1.6, h: 1.8, d: 1.0, color: 0x8a6d3b },
-      { x: 503, y: 0.3, z: -1.7, w: 0.55, h: 0.6, d: 0.55, color: 0x9c7a52 }, // chair (climb this first)
-      { x: 503, y: 0.3, z: -4.3, w: 0.55, h: 0.6, d: 0.55, color: 0x9c7a52 }, // second chair, decorative
+      { x: 507, y: 0.9, z: -9, w: 2.0, h: 1.8, d: 1.3, color: 0x8a6d3b },
+      { x: 507, y: 0.33, z: -7.3, w: 0.65, h: 0.65, d: 0.65, color: 0x9c7a52 }, // chair (climb this first)
+      { x: 507, y: 0.33, z: -10.7, w: 0.65, h: 0.65, d: 0.65, color: 0x9c7a52 }, // second chair, decorative
 
-      // Kitchen island, between the table and the south exit — cover to
-      // juke around while Granny's chasing (she avoids it too, see the
+      // Kitchen island, between the table and the middle of the room — cover
+      // to juke around while Granny's chasing (she avoids it too, see the
       // `obstacles` list on the `granny` config below).
-      { x: 500, y: 0.4, z: 2, w: 2.4, h: 0.8, d: 1.2, color: 0xb08a5c },
+      { x: 500, y: 0.5, z: -1, w: 3.2, h: 1.0, d: 1.6, color: 0xb08a5c },
+
+      // A round dining table further into the room with two stools, and a
+      // pantry shelf against the east wall — more cover spread across the
+      // room instead of everything clustered near the table.
+      { x: 507, y: 0.5, z: 2, w: 1.8, h: 1.0, d: 1.8, color: 0x9c7a52 },
+      { x: 507, y: 0.25, z: 0.5, w: 0.5, h: 0.5, d: 0.5, color: 0x8a6d3b }, // stool
+      { x: 507, y: 0.25, z: 3.5, w: 0.5, h: 0.5, d: 0.5, color: 0x8a6d3b }, // stool
+      { x: 513, y: 1.0, z: 6, w: 1.3, h: 2.0, d: 1.3, color: 0x8a6d3b }, // pantry shelf
+      // A trash can near the exit — a last dodge option right before the door.
+      { x: 496, y: 0.45, z: 9, w: 0.8, h: 0.9, d: 0.8, color: 0x707070 },
 
       // Stepping stones leading up to the water crossing.
       { x: 0, y: 0.5, z: 8, w: 3, h: 1, d: 3 },
@@ -146,11 +193,6 @@
 
       // Landing after the crossing.
       { x: 0, y: 0.5, z: 38, w: 6, h: 1, d: 4 },
-
-      // Gate: solid until goal.collectiblesRequired is met, then despawns
-      // (see checkGate() in main.js). Placed before the climbable wall so
-      // the boss wing is unreachable without exploring for supplies first.
-      { x: 0, y: 2, z: 42, w: 18, h: 4, d: 1, gate: true, color: 0x6b4a2f },
 
       // Climbable wall + top ledge — spans the full corridor width so it
       // can't be walked around, only over.
@@ -183,16 +225,24 @@
       { type: 'tuna', x: -15, y: 0.4, z: 10 },
       { type: 'tuna', x: -13, y: 0.4, z: 12 },
       { type: 'key', x: -16, y: 0.4, z: 8 },
-      // East lookout tower (vertical side branch).
-      { type: 'tuna', x: 14, y: 6.7, z: 9 },
-      { type: 'tuna', x: 14, y: 6.7, z: 11 },
+      // Rooftop reward on each climbable house (see the rival cats up
+      // there too, in enemies below).
+      { type: 'tuna', x: -28, y: 3.8, z: 6 },
+      { type: 'tuna', x: -26, y: 3.8, z: 8 },
+      { type: 'tuna', x: -28, y: 3.8, z: 18 },
+      { type: 'tuna', x: -26, y: 3.8, z: 20 },
+      // The open field around spawn/the two houses.
+      { type: 'milk', x: -22, y: 0.4, z: 7 },
+      { type: 'tuna', x: -25, y: 0.4, z: 11 },
+      { type: 'tuna', x: -20, y: 0.4, z: 15 },
+      { type: 'milk', x: -24, y: 0.4, z: 20 },
       // Water crossing.
       { type: 'tuna', x: 0, y: 0.9, z: 17.5 },
       { type: 'tuna', x: 1.3, y: 0.9, z: 21.5 },
       { type: 'tuna', x: -1.3, y: 0.9, z: 25.5 },
       { type: 'tuna', x: 1.3, y: 0.9, z: 29.5 },
       { type: 'tuna', x: 0, y: 0.9, z: 33.5 },
-      // Past the gate: wall-top + stairs.
+      // Past the climbable wall: wall-top + stairs.
       { type: 'milk', x: -2, y: 8.7, z: 45 },
       { type: 'milk', x: 2, y: 8.7, z: 45 },
       { type: 'tuna', x: 0, y: 7.3, z: 48 },
@@ -210,13 +260,14 @@
       // doesn't grant tuna/milk directly; it sets player.hasStolenFish,
       // resolved by escaping through a door (checkDoors) or getting caught
       // by Granny (checkGranny), both in main.js.
-      { type: 'fish', x: 503, y: 2.1, z: -3 },
+      { type: 'fish', x: 507, y: 2.1, z: -9 },
     ],
 
     // Bidirectional teleports. `to` is where the player lands; walking
-    // within `radius` of a door's x/z and pressing F triggers it (see
-    // checkDoors() in main.js). The front door is locked until the key
-    // (in the west room) is found.
+    // within `radius` of a door's x/z and pressing F triggers entrance
+    // doors (see checkDoors() in main.js) — return doors are `auto` and
+    // trigger on proximity alone, no F needed to leave. Locked ones need
+    // the key (found in the west room).
     doors: [
       { // Key-house front door, flush against its front wall (z=88).
         x: -13, y: 0, z: 88, ry: 0, radius: 1.1, locked: true,
@@ -226,17 +277,26 @@
       // its center at 6 — the wall is 0.6 thick and the door panel only
       // 0.15, so centering it on the wall buried it completely inside the
       // solid wall mesh, invisible from inside the room).
-      { x: 300, y: 0, z: 5.7, ry: Math.PI, to: { x: -13, y: 1, z: 87.0 } },
+      { x: 300, y: 0, z: 5.7, ry: Math.PI, auto: true, to: { x: -13, y: 1, z: 87.0 } },
 
-      // Couch-shed door, flush against its front wall (z=13.5) — no key
-      // needed, meant to be an easy early find.
-      { x: 7, y: 0, z: 13.5, ry: 0, radius: 1.0, to: { x: 400, y: 1, z: 0 } },
-      { x: 400, y: 0, z: 5.7, ry: Math.PI, to: { x: 7, y: 1, z: 12.65 } }, // inner face of south wall (z=6)
+      // Couch house door, flush against its front wall (z=3, after the
+      // house grew slightly) — no key needed, meant to be an easy early
+      // find (it's the one nearest spawn).
+      {
+        x: -27, y: 0, z: 3, ry: 0, radius: 1.0, to: { x: 400, y: 1, z: 0 },
+        enterMessage: 'Rasguñá el sillón con Espacio para romperlo!',
+      },
+      { x: 400, y: 0, z: 5.7, ry: Math.PI, auto: true, to: { x: -27, y: 1, z: 2.15 } }, // inner face of south wall (z=6)
 
-      // Kitchen-house door, flush against its front wall (z=13) — also
-      // unlocked (this mini-game's "lock" is Granny, not a key).
-      { x: -6, y: 0, z: 13, ry: 0, radius: 1.1, to: { x: 500, y: 1, z: 6 } },
-      { x: 500, y: 0, z: 7.7, ry: Math.PI, to: { x: -6, y: 1, z: 12.65 } }, // inner face of south wall (z=8)
+      // Granny/kitchen house door, flush against its front wall (z=15,
+      // after the house grew slightly) — locked (needs the same key as the
+      // boss-arena house), with a big padlock so it reads as locked from
+      // outside.
+      {
+        x: -27, y: 0, z: 15, ry: 0, radius: 1.1, locked: true, to: { x: 500, y: 1, z: 9 },
+        enterMessage: 'Toma el pescado y escapa de la abuela!',
+      },
+      { x: 500, y: 0, z: 11.7, ry: Math.PI, auto: true, to: { x: -27, y: 1, z: 14.15 } }, // inner face of south wall (z=12)
     ],
 
     // Couch mini-game: attack it (Space) enough times and it breaks open.
@@ -256,17 +316,29 @@
     // chases the player directly (checkGranny() in main.js). exitTo is
     // where getting caught dumps the player.
     granny: {
-      x: 496, y: 0, z: -6,
-      patrolA: { x: 496, z: -6 }, patrolB: { x: 496, z: 3 },
+      x: 489, y: 0, z: -9,
+      patrolA: { x: 489, z: -9 }, patrolB: { x: 489, z: 1 },
       ry: 0,
+      // Only ejects the player (see checkGranny() in main.js) after this
+      // many hits — a single graze just knocks Benito back, giving him a
+      // real chance to keep running instead of ending the attempt outright.
+      catchHitsToEject: 3,
       // obstacles: furniture she (and the player, via normal platform
       // collision) can't cut straight through — gives dodging around them
-      // during the chase an actual purpose.
+      // during the chase an actual purpose. Spread across the bigger room
+      // now, not just clustered near the table.
       obstacles: [
-        { x: 503, z: -3, radius: 1.0 }, // the table
-        { x: 500, z: 2, radius: 1.5 },  // the kitchen island
+        { x: 507, z: -9, radius: 1.2 },  // the table
+        { x: 489, z: -2, radius: 1.0 },  // the fridge
+        { x: 489, z: 4, radius: 0.9 },   // the broom closet
+        { x: 500, z: -1, radius: 1.9 },  // the kitchen island
+        { x: 507, z: 2, radius: 1.3 },   // the dining table
+        { x: 507, z: 0.5, radius: 0.5 }, // stool
+        { x: 507, z: 3.5, radius: 0.5 }, // stool
+        { x: 513, z: 6, radius: 1.1 },   // the pantry shelf
+        { x: 496, z: 9, radius: 0.6 },   // the trash can
       ],
-      exitTo: { x: -6, y: 1, z: 12.65 },
+      exitTo: { x: -27, y: 1, z: 14.15 },
     },
 
     enemies: [
@@ -284,9 +356,32 @@
         hp: 2, speed: 2, chaseSpeed: 3.6, aggroRadius: 5,
       },
       {
-        // East tower rooftop.
-        x: 14, y: 6.2, z: 10,
-        patrolA: { x: 14, z: 8 }, patrolB: { x: 14, z: 12 },
+        // Guards the approach to the couch house — the rival cat right by
+        // the nearest house to spawn. Patrols in front of the door (z=1,
+        // north of the house), not under the rooftop deck (z=3..11):
+        // findGroundY() picks the tallest platform at a given x/z with no
+        // notion of "below" vs "above", so a ground enemy wandering under
+        // an elevated platform gets snapped up onto it.
+        x: -27, y: 0, z: 1,
+        patrolA: { x: -29, z: 1 }, patrolB: { x: -25, z: 1 },
+        hp: 2, speed: 2, chaseSpeed: 3.8, aggroRadius: 5,
+      },
+      {
+        // Roams the open field further out, toward the granny house.
+        x: -20, y: 0, z: 26,
+        patrolA: { x: -24, z: 26 }, patrolB: { x: -16, z: 26 },
+        hp: 2, speed: 2.2, chaseSpeed: 4, aggroRadius: 5,
+      },
+      {
+        // On the couch house's rooftop deck — climb up and fight it there.
+        x: -27, y: 3.5, z: 7,
+        patrolA: { x: -29, z: 5 }, patrolB: { x: -25, z: 9 },
+        hp: 2, speed: 1.8, chaseSpeed: 3.2, aggroRadius: 5,
+      },
+      {
+        // On the granny house's rooftop deck.
+        x: -27, y: 3.5, z: 19,
+        patrolA: { x: -29, z: 17 }, patrolB: { x: -25, z: 21 },
         hp: 2, speed: 1.8, chaseSpeed: 3.2, aggroRadius: 5,
       },
       {
@@ -320,19 +415,21 @@
     },
 
     hints: [
-      { x: 0, z: 5, radius: 6, text: 'El jardin se abre aqui: hay rincones a los costados con provisiones extra, y un gato negro ronda el camino central.' },
+      { x: -22, z: 10, radius: 7, text: 'Benito desperto afuera, cerca de una casa con un sillon. Cuidado con los gatos rivales que rondan el campo abierto. Mas al este, del otro lado de la pared, esta el resto del jardin.' },
+      { x: -20, z: 11.5, radius: 4, text: 'Un porton de hierro cierra el paso. Junta leche y latas por el campo abierto para abrirlo.' },
+      { x: -27, z: 6, radius: 5, text: 'La casa del sillon sospechoso. Presiona F para entrar... y despues probá arañarlo (Espacio). Cualquier pared menos la del frente se trepa: hay un gato rival esperando en el techo.' },
+      { x: -27, z: 18, radius: 6, text: 'La cocina de una abuela gatera. El pescado esta arriba de la mesa: subite a la silla primero. Si te agarra con el pescado, va a salir corriendo detras tuyo con la escoba! Esta casa tambien se trepa por los costados.' },
       { x: -13, z: 9, radius: 5, text: 'Encontraste un rincon escondido... y una llave! Debe abrir alguna puerta en algun lugar lejano.' },
-      { x: 14, z: 9, radius: 6, text: 'Esa pared tambien se trepa: mantene E apretado para subir al techo.' },
       { x: 0, z: 15, radius: 4, text: 'El arroyo se cruza saltando entre las plataformas rosas: te impulsan solas al aterrizar.' },
-      { x: 0, z: 36, radius: 5, text: 'Ese porton necesita 10 provisiones para abrirse. Volve a explorar los rincones si te faltan.' },
       { x: 0, z: 42.5, radius: 6, text: 'Esa pared se escala: acercate y mantene E apretado para trepar.' },
       { x: 0, z: 61, radius: 5, text: 'El Gato Grande espera adelante. Cuando abra la boca y gruna, va a largar gases: esquivalos y aprovecha para aranarlo de cerca.' },
       { x: -13, z: 90, radius: 6, text: 'Esta debe ser la puerta de la llave! Presiona F para entrar.' },
-      { x: 7, z: 15, radius: 5, text: 'Un cobertizo con un sofa sospechoso. Presiona F para entrar... y despues probá arañarlo (Espacio).' },
-      { x: -6, z: 15, radius: 6, text: 'La cocina de una abuela gatera. El pescado esta arriba de la mesa: subite a la silla primero. Si te agarra con el pescado, va a salir corriendo detras tuyo con la escoba!' },
     ],
 
-    goal: { collectiblesRequired: 10 },
+    // Only the entrance gate uses this now (the far corridor gate is gone),
+    // and it sets its own gateRequires (4) anyway — kept in sync here just
+    // as the level's nominal collectible goal.
+    goal: { collectiblesRequired: 4 },
   };
 
   LEVEL_REGISTRY.push(LEVEL_GARDEN);

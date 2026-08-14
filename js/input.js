@@ -2,6 +2,11 @@
 const Input = {
   keys: {},
   justPressed: {},
+  // Accumulated camera-look drag (see js/mobile.js's swipe handling and
+  // updateCamera() in main.js, which consumes and resets these each frame).
+  // Always 0 on desktop — nothing ever writes to them there.
+  lookDeltaX: 0,
+  lookDeltaY: 0,
   bind() {
     window.addEventListener('keydown', (e) => {
       if (!this.keys[e.code]) this.justPressed[e.code] = true;
@@ -33,6 +38,17 @@ const Input = {
   pressed(code) {
     if (this.justPressed[code]) return true;
     return false;
+  },
+  // Same down/up transition a real keydown/keyup would produce — lets
+  // touch controls (js/mobile.js) drive the exact same code paths as the
+  // keyboard instead of needing separate touch-aware branches everywhere.
+  setDown(code, isDown) {
+    if (isDown) {
+      if (!this.keys[code]) this.justPressed[code] = true;
+      this.keys[code] = true;
+    } else {
+      this.keys[code] = false;
+    }
   },
   clearFrame() {
     this.justPressed = {};

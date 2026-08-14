@@ -38,6 +38,12 @@ class Enemy {
     this.dead = false;
     this.hitFlash = 0;
     this.lastHitAttackId = -1;
+
+    // Falling (e.g. chasing the player off a rooftop's edge) — same gravity
+    // constant as Player, so a cat that walks off a ledge actually drops
+    // instead of continuing to walk at ledge height with nothing under it.
+    this.velocityY = 0;
+    this.gravity = -22;
   }
 
   update(dt, world, player) {
@@ -80,7 +86,22 @@ class Enemy {
     }
 
     if (!player.dead) separateCircles(this.position, this.radius, player.position, player.radius);
-    this.position.y = findGroundY(world, this.position.x, this.position.z, this.position.y);
+
+    // Ground directly under the (possibly just-moved) x/z, ignoring current
+    // y entirely (unlike the old fallback-to-current-y behavior, which made
+    // an enemy that walked off a ledge just hang in midair at ledge height).
+    const groundY = findGroundY(world, this.position.x, this.position.z, -Infinity);
+    if (this.position.y > groundY + 0.02) {
+      this.velocityY += this.gravity * dt;
+      this.position.y += this.velocityY * dt;
+      if (this.position.y <= groundY) {
+        this.position.y = groundY;
+        this.velocityY = 0;
+      }
+    } else {
+      this.position.y = groundY;
+      this.velocityY = 0;
+    }
     this.mesh.position.copy(this.position);
     const tail = this.mesh.userData.parts.tailPivot;
     if (tail) tail.rotation.y = Math.sin(performance.now() * 0.01) * 0.6;

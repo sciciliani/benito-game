@@ -2,6 +2,28 @@
 // screen. Pure UI overlay — doesn't touch game state, Three.js, or the game
 // loop at all. Each panel's text crawls upward over the image, Star-Wars
 // style; see the storyScroll keyframes in css/style.css.
+
+// Where the crawl should stop: the text block's top edge, in %-of-frame
+// terms, such that its BOTTOM edge (the last line) lands at the frame's
+// vertical middle rather than scrolling fully off past the top. Pulled out
+// as a pure function — see tests/story-scroll.test.js — after an earlier
+// version of this used a fraction of the animation's *duration* as a proxy
+// for "reached the middle", which broke once text was much taller than the
+// frame (duration and on-screen distance aren't proportional once the
+// travelled distance itself was wrong).
+function computeScrollEndPercent(textHeightPx, containerHeightPx) {
+  return 50 - (textHeightPx / containerHeightPx) * 100;
+}
+
+// Node-only: lets tests/ `require()` this file for computeScrollEndPercent
+// without a DOM. The rest of this file (the IIFE below) touches `document`
+// at its top level, so it's guarded to not run there at all — never
+// affects the browser, where `document` always exists.
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { computeScrollEndPercent };
+}
+
+if (typeof document !== 'undefined') {
 (function () {
   const PANELS = [
     {
@@ -113,7 +135,7 @@ Continuara...`,
       // proportional once the endpoint itself is wrong.
       const containerH = imageWrap.clientHeight || 1;
       const textH = scrollText.scrollHeight || 1;
-      const endPercent = 50 - (textH / containerH) * 100;
+      const endPercent = computeScrollEndPercent(textH, containerH);
       scrollText.style.setProperty('--scroll-end', `${endPercent}%`);
 
       // A CSS animation with fill-mode:forwards freezes at its end state
@@ -201,3 +223,4 @@ Continuara...`,
   }
   if (!seenBefore) open();
 })();
+}

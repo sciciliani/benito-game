@@ -1,0 +1,12 @@
+{
+  "name": "benito-game",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Benito: Aventura Felina — a browser 3D cat adventure game (Three.js, no build step)",
+  "scripts": {
+    "test": "node --test tests/"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

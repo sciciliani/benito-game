@@ -22,6 +22,11 @@ class Granny {
     this.radius = 0.3;
     this.angry = false;
     this.catchImmuneTimer = 0;
+    // A single contact only grazes Benito (knockback, no heart lost) — it
+    // takes this many before she actually ejects him and takes the fish
+    // back, so one bad step during the chase isn't an instant game-over.
+    this.catchHitsToEject = cfg.catchHitsToEject ?? 3;
+    this.catchHits = 0;
     this._mutterTimer = 2 + Math.random() * 3;
 
     this.mesh = this._build();
@@ -88,6 +93,7 @@ class Granny {
   enrage() {
     if (this.angry) return;
     this.angry = true;
+    this.catchHits = 0;
     // A couple seconds where she's visibly furious and coming for you, but
     // can't actually land a hit yet — time to get moving after the grab
     // before the chase becomes a real threat.
@@ -97,6 +103,7 @@ class Granny {
 
   calm() {
     this.angry = false;
+    this.catchHits = 0;
     this._skinMat.color.set(0xf0c9a0);
   }
 
