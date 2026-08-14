@@ -94,13 +94,25 @@ const Silverpaw = (function () {
     loadingPromise = new Promise((resolve, reject) => {
       const manager = new THREE.LoadingManager();
       manager.setURLModifier((url) => (url.indexOf('Silverpaw_Tex.png') !== -1 ? textureUrl : url));
+      // FBXLoader's own onLoad fires as soon as the FBX file itself is
+      // parsed — the material's texture is still an in-flight image at
+      // that point (FBXLoader kicks off a TextureLoader for it but doesn't
+      // wait), so resolving there let the very first frame or two render
+      // Benito with no texture (a solid black cat) before it popped in
+      // white. The manager's own onLoad instead fires once every load it's
+      // tracking — the FBX AND that texture, both routed through it —
+      // has actually finished, so by the time this resolves the texture is
+      // already in place with nothing left to pop in.
+      let parsedObj = null;
+      manager.onLoad = () => {
+        if (parsedObj) onFbxParsed(parsedObj, resolve, reject);
+      };
       const loader = new THREE.FBXLoader(manager);
       try {
         if (fbxBase64) {
-          const obj = loader.parse(base64ToArrayBuffer(fbxBase64), '');
-          onFbxParsed(obj, resolve, reject);
+          parsedObj = loader.parse(base64ToArrayBuffer(fbxBase64), '');
         } else {
-          loader.load(fbxUrl, (obj) => onFbxParsed(obj, resolve, reject), undefined, reject);
+          loader.load(fbxUrl, (obj) => { parsedObj = obj; }, undefined, reject);
         }
       } catch (e) {
         reject(e);

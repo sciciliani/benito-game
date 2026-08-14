@@ -145,17 +145,22 @@ class LevelBuilder {
         mesh = new THREE.Group();
         const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), houseMats.wall);
         mesh.add(body);
+        // Most houses share one roof material; a specific roofColor (e.g.
+        // to make one house visually distinct, a landmark) gets its own.
+        const roofMat = p.roofColor != null
+          ? new THREE.MeshLambertMaterial({ color: p.roofColor })
+          : houseMats.roof;
         if (p.flatRoof) {
           // Climbable houses get a flat parapet ledge instead of a cone —
           // it needs to actually read as a place you can stand and fight,
           // not just a decorative peak. Collision-wise the box body above
           // is already the flat top the player lands on; this is a thin
           // purely-visual trim around its edge.
-          const trim = new THREE.Mesh(new THREE.BoxGeometry(w * 1.04, h * 0.06, d * 1.04), houseMats.roof);
+          const trim = new THREE.Mesh(new THREE.BoxGeometry(w * 1.04, h * 0.06, d * 1.04), roofMat);
           trim.position.y = h / 2 + (h * 0.06) / 2;
           mesh.add(trim);
         } else {
-          const roof = new THREE.Mesh(new THREE.ConeGeometry(w * 0.75, h * 0.6, 4), houseMats.roof);
+          const roof = new THREE.Mesh(new THREE.ConeGeometry(w * 0.75, h * 0.6, 4), roofMat);
           roof.rotation.y = Math.PI / 4;
           roof.position.y = h / 2 + (h * 0.6) / 2;
           mesh.add(roof);
@@ -259,6 +264,10 @@ class LevelBuilder {
       world.group.add(item.mesh);
       world.collectibles.push(item);
     }
+    // For the end-of-level summary (see checkEndConditions() in main.js) —
+    // milk/tuna only, not keys/fish, matching what the HUD counters (and
+    // player.milk/tuna) actually track.
+    world.totalItems = world.collectibles.filter((c) => c.type === 'milk' || c.type === 'tuna').length;
 
     // Enemies
     for (const e of config.enemies ?? []) {
@@ -266,6 +275,7 @@ class LevelBuilder {
       world.group.add(enemy.mesh);
       world.enemies.push(enemy);
     }
+    world.totalCats = world.enemies.length;
 
     // Boss
     if (config.boss) {

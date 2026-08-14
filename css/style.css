@@ -61,6 +61,16 @@ button {
 }
 button:active { transform: translateY(3px); box-shadow: 0 1px 0 #c99a1f; }
 #endStats { font-size: 18px; margin-bottom: 22px; }
+#endSummary {
+  background: rgba(255, 255, 255, 0.12); border-radius: 12px;
+  padding: 16px 24px; margin-bottom: 22px; min-width: 280px;
+}
+.summaryRow {
+  display: flex; justify-content: space-between; gap: 20px;
+  font-size: 16px; padding: 5px 0;
+}
+.summaryLabel { opacity: 0.85; }
+#summaryStars { text-align: center; font-size: 30px; margin-top: 8px; letter-spacing: 2px; }
 
 #startButtons { display: flex; gap: 14px; align-items: center; }
 button.secondaryBtn {

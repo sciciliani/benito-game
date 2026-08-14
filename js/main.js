@@ -35,6 +35,11 @@
   const endScreen = document.getElementById('endScreen');
   const endTitle = document.getElementById('endTitle');
   const endStats = document.getElementById('endStats');
+  const endSummary = document.getElementById('endSummary');
+  const summaryKills = document.getElementById('summaryKills');
+  const summaryItems = document.getElementById('summaryItems');
+  const summaryPercent = document.getElementById('summaryPercent');
+  const summaryStars = document.getElementById('summaryStars');
 
   let messageTimer = 0;
   function showMessage(text, seconds = 2.5) {
@@ -314,12 +319,28 @@
     if (player.dead) {
       endTitle.textContent = 'Benito quedo agotado...';
       endStats.textContent = `Cartones de leche: ${player.milk} — Latas de atun: ${player.tuna}`;
+      endSummary.classList.add('hidden');
       endScreen.classList.remove('hidden');
       return true;
     }
     if (world.boss && world.boss.dead) {
       endTitle.textContent = 'Nivel completado!';
-      endStats.textContent = `Venciste al Gato Grande con ${player.milk} cartones de leche y ${player.tuna} latas de atun.`;
+      endStats.textContent = 'Venciste al Gato Grande!';
+
+      const totalCats = world.totalCats ?? 0;
+      const totalItems = world.totalItems ?? 0;
+      const itemsFound = player.milk + player.tuna;
+      const killPct = totalCats > 0 ? (world.catsDefeated / totalCats) * 100 : 100;
+      const itemPct = totalItems > 0 ? (itemsFound / totalItems) * 100 : 100;
+      const combinedPct = (killPct + itemPct) / 2;
+      const stars = combinedPct >= 90 ? 5 : combinedPct >= 75 ? 4 : combinedPct >= 50 ? 3 : combinedPct >= 25 ? 2 : 1;
+
+      summaryKills.textContent = `${world.catsDefeated} / ${totalCats}`;
+      summaryItems.textContent = `${itemsFound} / ${totalItems}`;
+      summaryPercent.textContent = `${Math.round(combinedPct)}%`;
+      summaryStars.textContent = '⭐'.repeat(stars) + '☆'.repeat(5 - stars);
+      endSummary.classList.remove('hidden');
+
       endScreen.classList.remove('hidden');
       return true;
     }

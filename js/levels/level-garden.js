@@ -51,9 +51,20 @@
     // everything before the river; that gate is the sole entrance.
     ...hedgeCol(-18, 6, 10.2, 3),
     ...hedgeCol(-18, 12.8, 17, 3),
-    ...hedgeCol(18, 6, 17, 5.5),
+    // East side has its own gap (z9.5-13.5) — a plain opening, not gated,
+    // leading to the red-roofed house with the key (see below). Finding it
+    // isn't required to progress (the iron gate only needs 3 cats
+    // defeated), just to unlock the two doors that need the key.
+    ...hedgeCol(18, 6, 9.5, 3.5),
+    ...hedgeCol(18, 13.5, 17, 3.5),
     ...hedgeRow(-18, -9, 6, 4.5),       // west room north wall
-    ...hedgeRow(-18, -9, 14, 4.5),      // west room south wall (west wall is shared with the plaza outer wall above)
+    // West room south wall — flush against z=17, exactly where the x=-9
+    // corridor wall (below) resumes. It used to stop at z=14 (the room's
+    // own footprint), leaving an unwalled sliver from z=14 to 17 where the
+    // corridor wall's own gap (needed for the room's opening) extended
+    // past the room — walkable from outside by going around the plaza's
+    // north end, bypassing the entrance gate entirely.
+    ...hedgeRow(-18, -9, 17, 4.5),
     ...hedgeCol(-9, 17, 60, 5),         // corridor resumes, west/east
     ...hedgeCol(9, 17, 60, 5),
     ...hedgeRow(-18, -9, 60, 4.5),      // arena south wall, west/east flank (leaves -9..9 open as the entrance)
@@ -140,6 +151,20 @@
       { x: -27, y: 1.6, z: 21.4, w: 4, h: 3.2, d: 0.8, climbable: true }, // back (south) wall
       { x: -30.4, y: 1.6, z: 18, w: 0.8, h: 3.2, d: 4, climbable: true }, // west side wall
       { x: -28, y: 3.35, z: 19, w: 8, h: 0.3, d: 8 },
+
+      // The key house — a regular (non-climbable, cone-roofed) house on the
+      // OTHER side of the hedge from the couch/granny houses, through its
+      // own plain (ungated) gap in the east wall. Holds the key that used
+      // to be tucked in the west room — a real destination now, not a
+      // hidden pickup along the main path. Red roof (roofColor, see
+      // level.js) so it reads as distinct/a landmark from a distance.
+      { x: 24, y: 1.4, z: 11.5, w: 5, h: 2.8, d: 5, house: true, roofColor: 0xb0362c },
+      // Its own interior, offset to x=600 — small, just the key.
+      { x: 600, y: -0.5, z: 0, w: 8, h: 1, d: 8, color: 0x9c7a4a },
+      { x: 600, y: 2, z: -4, w: 8, h: 4, d: 0.6, color: 0xcbb994 },
+      { x: 604, y: 2, z: 0, w: 0.6, h: 4, d: 8, color: 0xcbb994 },
+      { x: 596, y: 2, z: 0, w: 0.6, h: 4, d: 8, color: 0xcbb994 },
+      { x: 600, y: 2, z: 4, w: 8, h: 4, d: 0.6, color: 0xcbb994 }, // south wall
 
       // The enterable key-house — deep in the boss arena rather than near
       // spawn, so it's a real destination and not just a pit stop. Placed
@@ -240,11 +265,12 @@
       // Plaza main path.
       { type: 'tuna', x: 0, y: 1.3, z: 8 },
       { type: 'tuna', x: 0, y: 1.3, z: 13 },
-      // West room (hidden side branch) — also where the house key is.
+      // West room (hidden side branch) — a few extra provisions.
       { type: 'milk', x: -13, y: 0.4, z: 8 },
       { type: 'tuna', x: -15, y: 0.4, z: 10 },
       { type: 'tuna', x: -13, y: 0.4, z: 12 },
-      { type: 'key', x: -16, y: 0.4, z: 8 },
+      // The key, inside the red-roofed house on the east side (see doors).
+      { type: 'key', x: 600, y: 0.4, z: 0 },
       // Rooftop reward on each climbable house (see the rival cats up
       // there too, in enemies below).
       { type: 'tuna', x: -28, y: 3.8, z: 6 },
@@ -287,7 +313,7 @@
     // within `radius` of a door's x/z and pressing F triggers entrance
     // doors (see checkDoors() in main.js) — return doors are `auto` and
     // trigger on proximity alone, no F needed to leave. Locked ones need
-    // the key (found in the west room).
+    // the key (found in the red-roofed house on the east side).
     doors: [
       { // Key-house front door, flush against its front wall (z=88).
         x: -13, y: 0, z: 88, ry: 0, radius: 1.1, locked: true,
@@ -317,6 +343,12 @@
         enterMessage: 'Toma el pescado y escapa de la abuela!',
       },
       { x: 500, y: 0, z: 11.7, ry: Math.PI, auto: true, to: { x: -27, y: 1, z: 14.15 } }, // inner face of south wall (z=12)
+
+      // Key house door, flush against its west-facing front wall (x=21.5)
+      // — no key needed to get IN, obviously, since the key is what's
+      // inside.
+      { x: 21.5, y: 0, z: 11.5, ry: Math.PI / 2, radius: 1.0, to: { x: 600, y: 1, z: 0 } },
+      { x: 600, y: 0, z: 3.7, ry: Math.PI, auto: true, to: { x: 20.65, y: 1, z: 11.5 } }, // inner face of south wall (z=4)
     ],
 
     // Couch mini-game: attack it (Space) enough times and it breaks open.
@@ -436,9 +468,7 @@
 
     hints: [
       { x: -22, z: 10, radius: 7, text: 'Benito desperto afuera, cerca de una casa con un sillon. Cuidado con los gatos rivales que rondan el campo abierto. Mas al este, del otro lado de la pared, esta el resto del jardin.' },
-      { x: -27, z: 6, radius: 5, text: 'La casa del sillon sospechoso. Presiona F para entrar... y despues probá arañarlo (Espacio). La pared de atras y la del oeste se trepan: hay un gato rival esperando en el techo.' },
-      { x: -27, z: 18, radius: 6, text: 'La cocina de una abuela gatera. El pescado esta arriba de la mesa: subite a la silla primero. Si te agarra con el pescado, va a salir corriendo detras tuyo con la escoba! Esta casa tambien se trepa por atras y por el oeste.' },
-      { x: -13, z: 9, radius: 5, text: 'Encontraste un rincon escondido... y una llave! Debe abrir alguna puerta en algun lugar lejano.' },
+      { x: 20, z: 11.5, radius: 5, text: 'Una casita de techo rojo, del otro lado del cerco. La llave debe estar ahi adentro.' },
       { x: 0, z: 15, radius: 4, text: 'El arroyo se cruza saltando entre las plataformas rosas: te impulsan solas al aterrizar.' },
       { x: 0, z: 42.5, radius: 6, text: 'Esa pared se escala: acercate y mantene E apretado para trepar.' },
       { x: 0, z: 61, radius: 5, text: 'El Gato Grande espera adelante. Cuando abra la boca y gruna, va a largar gases: esquivalos y aprovecha para aranarlo de cerca.' },
