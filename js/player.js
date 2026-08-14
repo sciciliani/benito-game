@@ -88,7 +88,11 @@ class Player {
     this.speed = 6.5;
     this.runSpeed = 10.5;
     this.jumpVelocity = 8.6;
-    this.airJumpVelocity = 7.4; // slightly weaker than the ground jump
+    // Full-strength double jump (not nerfed) — worst case (second jump
+    // pressed exactly at the first jump's ~1.68 apex) reaches ~2.93 total,
+    // which the hedge walls (h=3.4, see level-garden.js) are built tall
+    // enough to still block, with margin, instead of capping the jump.
+    this.airJumpVelocity = 7.4;
     this.gravity = -22;
     this.climbSpeed = 3.2;
     this.maxJumps = 2; // ground jump + one mid-air double jump
@@ -112,20 +116,14 @@ class Player {
   }
 
   takeDamage(amount, fromPos) {
+    // fromPos is unused (used to also launch him into a knockback pop-up —
+    // removed since it triggered the jump/land animation on every hit,
+    // which read as an unwanted "crouch"). Getting hit now only costs a
+    // heart and flashes red; it doesn't move or re-pose him at all.
     if (this.invulnTimer > 0 || this.dead) return;
     this.hearts -= amount;
     this.invulnTimer = 1.1;
     this.hitFlashTimer = 1.1;
-    if (fromPos) {
-      const push = this.position.clone().sub(fromPos);
-      push.y = 0;
-      if (push.lengthSq() < 0.0001) push.set(0, 0, 1);
-      push.normalize().multiplyScalar(6);
-      this.velocity.x = push.x;
-      this.velocity.z = push.z;
-      this.velocity.y = 5;
-      this.grounded = false;
-    }
     if (this.hearts <= 0) {
       this.hearts = 0;
       this.dead = true;
@@ -179,6 +177,7 @@ class Player {
       const closeOnY = Math.abs(enemy.position.y - this.position.y) < MELEE_VERTICAL_REACH + 1;
       if (dx * dx + dz * dz < this.superRadius * this.superRadius && closeOnY) {
         enemy.takeHit(4, this.position); // significantly damaged — kills most regular enemies outright
+        if (enemy.dead) world.catsDefeated = (world.catsDefeated ?? 0) + 1;
       }
     }
     if (world.boss && !world.boss.dead) {
@@ -282,6 +281,11 @@ class Player {
     const climbWall = this._checkClimbable(world);
     this.onClimbable = !!climbWall;
     const climbing = this.onClimbable && Input.down('KeyE');
+    // Exposed so Enemy.update() can skip pushing him around mid-climb (see
+    // there) — separateCircles is x/z-only with no vertical gate, so a
+    // rooftop enemy could otherwise shove a player scaling the wall far
+    // below it, breaking the deterministic climb into a random drift.
+    this.climbing = climbing;
 
     if (climbing) {
       this.velocity.y = this.climbSpeed;

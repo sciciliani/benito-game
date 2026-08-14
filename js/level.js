@@ -70,10 +70,14 @@ class LevelBuilder {
       group: new THREE.Group(),
       goal: config.goal ?? { collectiblesRequired: 0 },
       // One or more gated barriers (see checkGate() in main.js). Each gate
-      // can set its own `gateRequires` threshold (e.g. a smaller one for an
-      // early gate whose reachable collectibles are limited); if omitted it
-      // falls back to goal.collectiblesRequired.
+      // can set its own `gateRequires` (collectibles) or `gateRequiresKills`
+      // (rival cats defeated) threshold; if neither is set it falls back to
+      // goal.collectiblesRequired.
       gates: [],
+      // Rival cats defeated so far (regular claw hits or the super attack —
+      // see enemy.js and Player.trySuper) — a gate can require this instead
+      // of collectibles.
+      catsDefeated: 0,
     };
 
     const skyTop = config.skyColor ?? 0x2f7fd6;
@@ -229,13 +233,17 @@ class LevelBuilder {
       };
       world.platforms.push(entry);
       // A gate: a solid wall that blocks the path until the player has
-      // collected enough items (see checkGate() in main.js), then despawns.
+      // collected enough items or defeated enough cats (see checkGate() in
+      // main.js), then despawns.
       if (p.gate) {
         world.gates.push({
           platform: entry,
+          x: p.x, z: p.z,
           required: p.gateRequires ?? null,
+          requiredKills: p.gateRequiresKills ?? null,
           opened: false,
           openMessage: p.gateOpenMessage ?? null,
+          lockedMessage: p.gateLockedMessage ?? null,
         });
       }
     }

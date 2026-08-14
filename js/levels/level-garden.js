@@ -14,11 +14,14 @@
 //   57..98  enemy gauntlet + boss arena (widens back to 18, unchanged shape)
 
 (function () {
+  // h=3.4 (not the double jump's fault: it's kept at full strength — see
+  // player.js — and this is just tall enough that even its worst-case
+  // ~2.93 reach still can't clear the fence, with margin).
   function hedgeCol(x, z0, z1, segLen) {
     const segs = [];
     for (let z = z0; z < z1; z += segLen) {
       const len = Math.min(segLen, z1 - z);
-      segs.push({ x, y: 1.3, z: z + len / 2, w: 1.8, h: 2.6, d: len + 0.4, hedge: true });
+      segs.push({ x, y: 1.7, z: z + len / 2, w: 1.8, h: 3.4, d: len + 0.4, hedge: true });
     }
     return segs;
   }
@@ -26,7 +29,7 @@
     const segs = [];
     for (let x = x0; x < x1; x += segLen) {
       const len = Math.min(segLen, x1 - x);
-      segs.push({ x: x + len / 2, y: 1.3, z, w: len + 0.4, h: 2.6, d: 1.8, hedge: true });
+      segs.push({ x: x + len / 2, y: 1.7, z, w: len + 0.4, h: 3.4, d: 1.8, hedge: true });
     }
     return segs;
   }
@@ -82,15 +85,19 @@
       // whole walled plaza, west room, and water crossing) behind the hedge
       // — this narrow iron door (double a normal door's width, see the
       // matching gap cut into the boundary hedge above) is the only way
-      // in. Requires 4 of the milk/tuna scattered around the open field
-      // (out of the 6 reachable there) — deliberately less than the far
-      // gate's 10, since everything past this point is unreachable until
-      // it opens. Same steel-door/forbidden-sign look as the other gate
-      // (see level.js) but sized for a gap in a column wall, not a corridor
-      // cap: width (x) is the thin dimension, depth (z) is the wide one.
+      // in. Opens once 3 rival cats have been defeated (see
+      // world.catsDefeated, incremented in enemy.js/player.js), not by
+      // collecting items. Only as tall as the hedge it sits in (h=3.6 vs
+      // the hedge's 3.4), not the far corridor gate's full h=5 — it reads
+      // as part of the fence line, not a separate tower. Same
+      // steel-door/forbidden-sign look as before (see level.js) but sized
+      // for a gap in a column wall: width (x) is the thin dimension, depth
+      // (z) is the wide one.
       {
-        x: -18, y: 2.5, z: 11.5, w: 1.2, h: 5, d: 2.6, gate: true,
-        gateRequires: 4, gateOpenMessage: 'El porton se abrio! El jardin esta abierto.',
+        x: -18, y: 1.8, z: 11.5, w: 1.2, h: 3.6, d: 2.6, gate: true,
+        gateRequiresKills: 3,
+        gateOpenMessage: 'El porton se abrio! El jardin esta abierto.',
+        gateLockedMessage: 'Esta puerta solo se abrira al haber vencido a tres gatos.',
       },
 
       // The couch house — the one nearest spawn, with a rival cat guarding
@@ -104,7 +111,7 @@
       { x: -27, y: 1.6, z: 9.4, w: 4, h: 3.2, d: 0.8, climbable: true }, // back (south) wall
       { x: -23.6, y: 1.6, z: 6, w: 0.8, h: 3.2, d: 4, climbable: true }, // east side wall
       { x: -30.4, y: 1.6, z: 6, w: 0.8, h: 3.2, d: 4, climbable: true }, // west side wall
-      { x: -27, y: 3.35, z: 7, w: 8, h: 0.3, d: 8 },
+      { x: -27, y: 3.35, z: 7, w: 10, h: 0.3, d: 8 },
       // Its own interior, same reused pattern, offset to x=400.
       { x: 400, y: -0.5, z: 0, w: 12, h: 1, d: 12, color: 0x9c7a4a },
       { x: 400, y: 2, z: -6, w: 12, h: 4, d: 0.6, color: 0xcbb994 },
@@ -119,7 +126,7 @@
       { x: -27, y: 1.6, z: 21.4, w: 4, h: 3.2, d: 0.8, climbable: true }, // back (south) wall
       { x: -23.6, y: 1.6, z: 18, w: 0.8, h: 3.2, d: 4, climbable: true }, // east side wall
       { x: -30.4, y: 1.6, z: 18, w: 0.8, h: 3.2, d: 4, climbable: true }, // west side wall
-      { x: -27, y: 3.35, z: 19, w: 8, h: 0.3, d: 8 },
+      { x: -27, y: 3.35, z: 19, w: 10, h: 0.3, d: 8 },
 
       // The enterable key-house — deep in the boss arena rather than near
       // spawn, so it's a real destination and not just a pit stop. Placed
@@ -416,7 +423,6 @@
 
     hints: [
       { x: -22, z: 10, radius: 7, text: 'Benito desperto afuera, cerca de una casa con un sillon. Cuidado con los gatos rivales que rondan el campo abierto. Mas al este, del otro lado de la pared, esta el resto del jardin.' },
-      { x: -20, z: 11.5, radius: 4, text: 'Un porton de hierro cierra el paso. Junta leche y latas por el campo abierto para abrirlo.' },
       { x: -27, z: 6, radius: 5, text: 'La casa del sillon sospechoso. Presiona F para entrar... y despues probá arañarlo (Espacio). Cualquier pared menos la del frente se trepa: hay un gato rival esperando en el techo.' },
       { x: -27, z: 18, radius: 6, text: 'La cocina de una abuela gatera. El pescado esta arriba de la mesa: subite a la silla primero. Si te agarra con el pescado, va a salir corriendo detras tuyo con la escoba! Esta casa tambien se trepa por los costados.' },
       { x: -13, z: 9, radius: 5, text: 'Encontraste un rincon escondido... y una llave! Debe abrir alguna puerta en algun lugar lejano.' },
@@ -426,9 +432,8 @@
       { x: -13, z: 90, radius: 6, text: 'Esta debe ser la puerta de la llave! Presiona F para entrar.' },
     ],
 
-    // Only the entrance gate uses this now (the far corridor gate is gone),
-    // and it sets its own gateRequires (4) anyway — kept in sync here just
-    // as the level's nominal collectible goal.
+    // Unused as a gate fallback now — the only gate requires defeating cats
+    // (gateRequiresKills), not collectibles. Left as a nominal goal value.
     goal: { collectiblesRequired: 4 },
   };
 

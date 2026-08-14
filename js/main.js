@@ -265,15 +265,9 @@
           doorCooldown = 0.6;
           showMessage('Te atrapo y te golpeo con la escoba! Perdiste el pescado.', 3.5);
         } else {
-          // A graze: knockback only, no heart lost — keeps the chase (and
-          // the tension) going instead of ending the whole attempt.
-          const push = new THREE.Vector3(dx, 0, dz);
-          if (push.lengthSq() < 0.0001) push.set(0, 0, 1);
-          push.normalize().multiplyScalar(5);
-          player.velocity.x = push.x;
-          player.velocity.z = push.z;
-          player.velocity.y = 4;
-          player.grounded = false;
+          // A graze: no heart lost and no knockback (see takeDamage() in
+          // player.js — hits no longer move or re-pose him) — keeps the
+          // chase (and the tension) going instead of ending the attempt.
           SFX.playHiss();
           showMessage(`Te rozo con la escoba! (${world.granny.catchHits}/${world.granny.catchHitsToEject})`, 1.8);
         }
@@ -284,8 +278,27 @@
   function checkGate() {
     for (const gate of world.gates) {
       if (gate.opened) continue;
-      const required = gate.required ?? (world.goal?.collectiblesRequired ?? 0);
-      if (player.milk + player.tuna < required) continue;
+
+      // Proximity reminder, shown once per approach (not spammed every
+      // frame while standing there) — same pattern as the locked-door hint
+      // in checkDoors().
+      if (gate.lockedMessage) {
+        const dx = player.position.x - gate.x, dz = player.position.z - gate.z;
+        const near = dx * dx + dz * dz < 5 * 5;
+        if (near && !gate._hintShown) {
+          gate._hintShown = true;
+          showMessage(gate.lockedMessage, 3);
+        } else if (!near) {
+          gate._hintShown = false;
+        }
+      }
+
+      if (gate.requiredKills != null) {
+        if (world.catsDefeated < gate.requiredKills) continue;
+      } else {
+        const required = gate.required ?? (world.goal?.collectiblesRequired ?? 0);
+        if (player.milk + player.tuna < required) continue;
+      }
       gate.opened = true;
       const idx = world.platforms.indexOf(gate.platform);
       if (idx !== -1) world.platforms.splice(idx, 1);

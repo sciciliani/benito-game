@@ -85,7 +85,10 @@ class Enemy {
       this.mesh.rotation.y = Math.atan2(dirX, dirZ);
     }
 
-    if (!player.dead) separateCircles(this.position, this.radius, player.position, player.radius);
+    // Skipped mid-climb: separateCircles is x/z-only with no vertical gate,
+    // so without this an enemy patrolling a rooftop could shove a player
+    // still climbing the wall far below it sideways off their line.
+    if (!player.dead && !player.climbing) separateCircles(this.position, this.radius, player.position, player.radius);
 
     // Ground directly under the (possibly just-moved) x/z, ignoring current
     // y entirely (unlike the old fallback-to-current-y behavior, which made
@@ -126,6 +129,7 @@ class Enemy {
     if (player.attackId !== this.lastHitAttackId && player.attackHits(this.position, this.radius)) {
       this.lastHitAttackId = player.attackId;
       this.takeHit(1, player.position);
+      if (this.dead) world.catsDefeated = (world.catsDefeated ?? 0) + 1;
       player.onLandedHit();
     }
 
